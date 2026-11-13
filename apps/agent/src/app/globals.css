@@ -1,0 +1,76 @@
+@import "@nextgen/design-system/globals.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply font-body antialiased;
+  background: var(--ng-bg) !important;
+  color: var(--ng-text);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.ng-atmosphere {
+  background: var(--ng-bg) !important;
+}
+
+.cx-page {
+  @apply space-y-4;
+}
+
+.cx-title {
+  @apply font-display text-lg font-bold tracking-tight sm:text-xl;
+  color: var(--ng-text);
+}
+
+.cx-card {
+  border: 1px solid var(--ng-border);
+  background: var(--ng-surface);
+  border-radius: 0.75rem;
+}
+
+.cx-muted {
+  color: var(--ng-muted);
+  font-size: 0.875rem;
+}
+
+.cx-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ng-border);
+  background: var(--ng-surface-2);
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ng-text);
+  outline: none;
+}
+
+.cx-input:focus {
+  border-color: var(--ng-accent);
+}
+
+.cx-btn {
+  display: inline-flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: none;
+  background: var(--ng-accent);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--ng-accent-ink);
+}
+
+.cx-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.cx-link {
+  color: var(--ng-accent);
+  font-weight: 700;
+}

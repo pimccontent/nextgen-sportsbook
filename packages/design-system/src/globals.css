@@ -1,0 +1,143 @@
+:root,
+[data-theme="day"] {
+  /* Neutral surfaces — amber is for actions/links only */
+  --ng-bg: #fafafa;
+  --ng-surface: #ffffff;
+  --ng-surface-2: #f4f4f5;
+  --ng-border: #e4e4e7;
+  --ng-text: #18181b;
+  --ng-muted: #71717a;
+  --ng-accent: #f5a524;
+  --ng-accent-ink: #18181b;
+  --ng-danger: #dc2626;
+  --ng-live: #dc2626;
+  --ng-odds-up: #16a34a;
+  --ng-odds-down: #e11d48;
+  --ng-focus: #f5a524;
+  --ng-win: #16a34a;
+  --ng-loss: #71717a;
+  --ng-radius-sm: 6px;
+  --ng-radius-md: 10px;
+  --ng-radius-lg: 14px;
+  --ng-font-display: "Sora", "Segoe UI", sans-serif;
+  --ng-font-body: "Manrope", "Segoe UI", sans-serif;
+  --ng-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --ng-shadow-soft: 0 12px 40px rgba(24, 24, 27, 0.1);
+  color-scheme: light;
+}
+
+[data-theme="night"] {
+  --ng-bg: #000000;
+  --ng-surface: #0a0a0a;
+  --ng-surface-2: #141414;
+  --ng-border: #27272a;
+  --ng-text: #fafafa;
+  --ng-muted: #a1a1aa;
+  --ng-accent: #f5a524;
+  --ng-accent-ink: #000000;
+  --ng-danger: #f87171;
+  --ng-live: #f87171;
+  --ng-odds-up: #4ade80;
+  --ng-odds-down: #fb7185;
+  --ng-focus: #f5a524;
+  --ng-win: #4ade80;
+  --ng-loss: #a1a1aa;
+  --ng-shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--ng-bg);
+  color: var(--ng-text);
+  font-family: var(--ng-font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ng-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ng-accent) 35%, transparent);
+  color: var(--ng-text);
+}
+
+.ng-atmosphere {
+  background: var(--ng-bg);
+}
+
+.ng-tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ng-font-mono);
+}
+
+/* Primary text links — amber across themes */
+.ng-link {
+  color: var(--ng-accent);
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter 0.15s ease;
+}
+
+.ng-link:hover {
+  filter: brightness(1.08);
+}
+
+.ng-btn-primary {
+  display: inline-flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ng-radius-md);
+  border: none;
+  background: var(--ng-accent);
+  color: var(--ng-accent-ink);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.ng-btn-primary:hover {
+  filter: brightness(0.96);
+}
+
+.ng-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

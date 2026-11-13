@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nextgen-postgres
+    environment:
+      POSTGRES_DB: nextgen_sportsbook
+      POSTGRES_USER: nextgen
+      POSTGRES_PASSWORD: nextgen_dev_only
+    ports:
+      - "5433:5432"
+    volumes:
+      - nextgen_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextgen -d nextgen_sportsbook"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: nextgen-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/Dockerfile
+    container_name: nextgen-api
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8081
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: nextgen_sportsbook
+      DB_USERNAME: nextgen
+      DB_PASSWORD: nextgen_dev_only
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_CLIENT: phpredis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: array
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../apps/api:/var/www/html
+      - api_vendor:/var/www/html/vendor
+    working_dir: /var/www/html
+
+volumes:
+  nextgen_pg:
+  api_vendor:
