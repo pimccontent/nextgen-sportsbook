@@ -12,19 +12,11 @@ import { HeroSlider } from "@/components/HeroSlider";
 import { api } from "@/lib/api";
 import { useSlip } from "@/lib/slip-context";
 
-function syncLabel(syncedAt: string | null, nowMs: number): string {
-  if (!syncedAt) return "";
-  const sec = Math.max(0, Math.floor((nowMs - new Date(syncedAt).getTime()) / 1000));
-  if (sec < 2) return "Synced just now";
-  if (sec < 60) return `Synced ${sec}s ago`;
-  return `Synced ${Math.floor(sec / 60)}m ago`;
-}
-
 type LobbyMode = "upcoming" | "live" | "played";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { selectedIds, toggleSelection } = useSlip();
+  const { selectedIds, toggleSelection, loadBookingLegs, setBookingCode } = useSlip();
   const [mode, setMode] = React.useState<LobbyMode>("upcoming");
   const [competitionId, setCompetitionId] = React.useState<string>("all");
   const [competitions, setCompetitions] =
@@ -34,6 +26,10 @@ export default function LobbyPage() {
   const [syncedAt, setSyncedAt] = React.useState<string | null>(null);
   const [nowMs, setNowMs] = React.useState(() => Date.now());
   const [pulse, setPulse] = React.useState(false);
+  const [codesOpen, setCodesOpen] = React.useState(false);
+  const [bookingCodes, setBookingCodes] = React.useState<
+    Array<{ code: string; legsCount: number }>
+  >([]);
 
   const load = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -60,7 +56,11 @@ export default function LobbyPage() {
 
   React.useEffect(() => {
     void load(false);
-    const id = window.setInterval(() => void load(true), 8000);
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      void load(true);
+    };
+    const id = window.setInterval(tick, 15000);
     return () => window.clearInterval(id);
   }, [load]);
 
@@ -157,29 +157,87 @@ export default function LobbyPage() {
                   Played{playedCount > 0 ? ` · ${playedCount}` : ""}
                 </button>
               </div>
-              <div
+              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-[var(--ng-border)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--ng-muted)]"
+                onClick={() => {
+                  setCodesOpen((o) => !o);
+                  if (!codesOpen) {
+                    void api.bookingCodes().then((d) => setBookingCodes(d.bookingCodes));
+                  }
+                }}
+              >
+                Betting codes
+              </button>
+              <button
+                type="button"
+                aria-label={loading ? "Syncing fixtures" : "Sync fixtures"}
+                title={loading ? "Syncing…" : "Sync"}
+                onClick={() => void load(false)}
                 className={[
-                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition",
+                  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition",
                   mode === "live" || liveCount > 0
-                    ? "border-[color-mix(in_srgb,var(--ng-live)_45%,var(--ng-border))] text-[var(--ng-live)]"
-                    : "border-[var(--ng-border)] text-[var(--ng-muted)]",
-                  pulse ? "scale-[1.03]" : "",
-                  fresh ? "bg-[color-mix(in_srgb,var(--ng-accent)_12%,transparent)]" : "",
+                    ? "border-[color-mix(in_srgb,var(--ng-live)_45%,var(--ng-border))]"
+                    : "border-[var(--ng-border)]",
+                  pulse ? "scale-110" : "",
+                  fresh
+                    ? "bg-[color-mix(in_srgb,var(--ng-accent)_14%,transparent)]"
+                    : "bg-[var(--ng-surface)]",
                 ].join(" ")}
               >
                 <span
                   className={[
-                    "h-1.5 w-1.5 rounded-full",
+                    "absolute h-3 w-3 rounded-full opacity-35",
+                    loading || mode === "live" || liveCount > 0 || fresh
+                      ? "animate-ping"
+                      : "hidden",
                     mode === "live" || liveCount > 0
-                      ? "animate-pulse bg-[var(--ng-live)]"
+                      ? "bg-[var(--ng-live)]"
+                      : "bg-[var(--ng-accent)]",
+                  ].join(" ")}
+                />
+                <span
+                  className={[
+                    "relative h-2 w-2 rounded-full",
+                    loading ? "animate-pulse" : "",
+                    mode === "live" || liveCount > 0
+                      ? "bg-[var(--ng-live)]"
                       : fresh
                         ? "bg-[var(--ng-accent)]"
                         : "bg-[var(--ng-muted)]",
                   ].join(" ")}
                 />
-                {loading ? "Syncing" : syncLabel(syncedAt, nowMs) || "Live sync"}
+              </button>
               </div>
             </div>
+            {codesOpen ? (
+              <div className="mt-2 space-y-1.5 rounded-xl border border-[var(--ng-border)] bg-[var(--ng-surface)] p-2">
+                {bookingCodes.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-[var(--ng-muted)]">No listed codes.</p>
+                ) : (
+                  bookingCodes.map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-[var(--ng-surface-2)]"
+                      onClick={() => {
+                        void api.bookingCode(c.code).then((d) => {
+                          loadBookingLegs(d.bookingCode.legs);
+                          setBookingCode(c.code);
+                          setCodesOpen(false);
+                        });
+                      }}
+                    >
+                      <span className="font-mono font-bold">{c.code}</span>
+                      <span className="text-[10px] uppercase text-[var(--ng-muted)]">
+                        {c.legsCount} legs
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
             <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
               <button
                 type="button"

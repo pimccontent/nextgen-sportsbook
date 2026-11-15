@@ -39,7 +39,11 @@ export function BottomNavigation() {
         });
     };
     load();
-    const id = window.setInterval(load, 15000);
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      load();
+    };
+    const id = window.setInterval(tick, 25000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

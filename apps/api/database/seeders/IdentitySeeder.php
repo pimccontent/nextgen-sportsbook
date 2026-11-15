@@ -9,6 +9,7 @@ use App\Models\Profile;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class IdentitySeeder extends Seeder
 {
@@ -23,6 +24,7 @@ class IdentitySeeder extends Seeder
                 'name' => 'Demo Customer',
                 'email' => '233241111111@phone.nextgen.local',
                 'password' => 'Password1!',
+                'security_pin_hash' => Hash::make('123456'),
                 'role' => UserRole::Customer,
                 'status' => UserStatus::Active,
             ]

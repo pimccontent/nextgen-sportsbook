@@ -4,6 +4,7 @@ export type AgentRow = {
   id: number;
   referralCode: string;
   status: string;
+  canCreateBookingCodes?: boolean;
   parentAgentId: number | null;
   parentName?: string | null;
   user: { id?: number; name: string; email: string; phone: string | null };

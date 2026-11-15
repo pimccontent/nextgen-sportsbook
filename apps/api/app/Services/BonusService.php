@@ -30,11 +30,10 @@ final class BonusService
             return null;
         }
 
+        $mode = ($promo['deposit_bonus_mode'] ?? 'percent') === 'fixed' ? 'fixed' : 'percent';
         $percentBps = (int) ($promo['deposit_bonus_percent_bps'] ?? 0);
+        $fixedMinor = (int) ($promo['deposit_bonus_fixed_minor'] ?? 0);
         $maxMinor = (int) ($promo['deposit_bonus_max_minor'] ?? 0);
-        if ($percentBps <= 0) {
-            return null;
-        }
 
         if (! empty($promo['deposit_bonus_first_only'])) {
             $prior = PaymentIntent::query()
@@ -48,8 +47,10 @@ final class BonusService
             }
         }
 
-        $bonus = intdiv($intent->amount_minor * $percentBps, 10000);
-        if ($maxMinor > 0) {
+        $bonus = $mode === 'fixed'
+            ? $fixedMinor
+            : intdiv($intent->amount_minor * $percentBps, 10000);
+        if ($mode === 'percent' && $maxMinor > 0) {
             $bonus = min($bonus, $maxMinor);
         }
         if ($bonus <= 0) {
@@ -84,15 +85,16 @@ final class BonusService
             return null;
         }
 
+        $mode = ($promo['win_bonus_mode'] ?? 'percent') === 'fixed' ? 'fixed' : 'percent';
         $percentBps = (int) ($promo['win_bonus_percent_bps'] ?? 0);
+        $fixedMinor = (int) ($promo['win_bonus_fixed_minor'] ?? 0);
         $maxMinor = (int) ($promo['win_bonus_max_minor'] ?? 0);
-        if ($percentBps <= 0) {
-            return null;
-        }
 
         $netWin = max(0, $bet->potential_return_minor - $bet->stake_minor);
-        $bonus = intdiv($netWin * $percentBps, 10000);
-        if ($maxMinor > 0) {
+        $bonus = $mode === 'fixed'
+            ? $fixedMinor
+            : intdiv($netWin * $percentBps, 10000);
+        if ($mode === 'percent' && $maxMinor > 0) {
             $bonus = min($bonus, $maxMinor);
         }
         if ($bonus <= 0) {
@@ -122,16 +124,21 @@ final class BonusService
 
         return [
             'deposit_bonus_enabled' => (bool) ($promo['deposit_bonus_enabled'] ?? false),
+            'deposit_bonus_mode' => ($promo['deposit_bonus_mode'] ?? 'percent') === 'fixed' ? 'fixed' : 'percent',
             'deposit_bonus_percent_bps' => (int) ($promo['deposit_bonus_percent_bps'] ?? 0),
+            'deposit_bonus_fixed_minor' => (int) ($promo['deposit_bonus_fixed_minor'] ?? 0),
             'deposit_bonus_max_minor' => (int) ($promo['deposit_bonus_max_minor'] ?? 0),
             'deposit_bonus_first_only' => (bool) ($promo['deposit_bonus_first_only'] ?? false),
             'deposit_bonus_title' => $promo['deposit_bonus_title'] ?? 'Top-up bonus',
             'deposit_bonus_blurb' => $promo['deposit_bonus_blurb'] ?? '',
             'win_bonus_enabled' => (bool) ($promo['win_bonus_enabled'] ?? false),
+            'win_bonus_mode' => ($promo['win_bonus_mode'] ?? 'percent') === 'fixed' ? 'fixed' : 'percent',
             'win_bonus_percent_bps' => (int) ($promo['win_bonus_percent_bps'] ?? 0),
+            'win_bonus_fixed_minor' => (int) ($promo['win_bonus_fixed_minor'] ?? 0),
             'win_bonus_max_minor' => (int) ($promo['win_bonus_max_minor'] ?? 0),
             'win_bonus_title' => $promo['win_bonus_title'] ?? 'Win bonus',
             'win_bonus_blurb' => $promo['win_bonus_blurb'] ?? '',
+            'max_bonus_stake_minor' => (int) ($promo['max_bonus_stake_minor'] ?? 0),
         ];
     }
 
@@ -157,6 +164,6 @@ final class BonusService
             $memo
         );
         $wallet->refresh();
-        $this->ledger->creditAvailable($wallet, $bonusMinor);
+        $this->ledger->creditBonus($wallet, $bonusMinor);
     }
 }

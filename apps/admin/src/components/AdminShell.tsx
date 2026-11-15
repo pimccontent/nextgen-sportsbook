@@ -51,6 +51,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Activity,
     items: [
       { href: "/fixtures", label: "Fixtures", icon: Activity },
+      { href: "/competitions", label: "Competitions", icon: Activity },
+      { href: "/booking-codes", label: "Booking codes", icon: Activity },
       { href: "/settlement", label: "Settlement", icon: Gavel },
       { href: "/banners", label: "Banners", icon: PanelsTopLeft },
     ],
@@ -69,7 +71,10 @@ const NAV_GROUPS: NavGroup[] = [
     id: "partners",
     label: "Partners",
     icon: Building2,
-    items: [{ href: "/agents", label: "Agents", icon: Building2 }],
+    items: [
+      { href: "/agents", label: "Agents", icon: Building2 },
+      { href: "/agent-payouts", label: "Agent payouts", icon: Wallet },
+    ],
   },
   {
     id: "administration",
@@ -98,6 +103,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [paymentsMode, setPaymentsMode] = useState<"test" | "live">("test");
+  const [environment, setEnvironment] = useState<"sandbox" | "live">("sandbox");
+  const [maintenanceOn, setMaintenanceOn] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -112,9 +119,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         const mode = (cfg.payments?.mode ?? cfg.meta?.payments_mode ?? "test").toLowerCase();
         setPaymentsMode(mode === "live" ? "live" : "test");
+        const env = (
+          (cfg as { operations?: { environment?: string; maintenance_enabled?: boolean } })
+            .operations?.environment ??
+          cfg.meta?.environment ??
+          "sandbox"
+        ).toLowerCase();
+        setEnvironment(env === "live" ? "live" : "sandbox");
+        setMaintenanceOn(
+          Boolean(
+            (cfg as { operations?: { maintenance_enabled?: boolean } }).operations
+              ?.maintenance_enabled ?? cfg.meta?.maintenance
+          )
+        );
       })
       .catch(() => {
-        if (!cancelled) setPaymentsMode("test");
+        if (!cancelled) {
+          setPaymentsMode("test");
+          setEnvironment("sandbox");
+          setMaintenanceOn(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -338,6 +362,37 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              {maintenanceOn ? (
+                <span
+                  className="status-pill status-pill--live"
+                  title="Customer and Agent portals are in maintenance"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-warning-fg)]" />
+                  Maintenance
+                </span>
+              ) : null}
+              <span
+                className={
+                  environment === "live"
+                    ? "status-pill status-pill--live"
+                    : "status-pill status-pill--ok"
+                }
+                title={
+                  environment === "live"
+                    ? "Operations environment is Live — provider money rails still need engineering go-live"
+                    : "Operations environment is Sandbox"
+                }
+              >
+                <span
+                  className={[
+                    "h-1.5 w-1.5 rounded-full",
+                    environment === "live"
+                      ? "bg-[var(--status-warning-fg)]"
+                      : "bg-[var(--status-healthy-fg)]",
+                  ].join(" ")}
+                />
+                {environment === "live" ? "Live" : "Sandbox"}
+              </span>
               <span
                 className={
                   paymentsMode === "live"
@@ -358,7 +413,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                       : "bg-[var(--status-healthy-fg)]",
                   ].join(" ")}
                 />
-                {paymentsMode === "live" ? "Live payments" : "Test payments"}
+                {paymentsMode === "live" ? "Live pay" : "Test pay"}
               </span>
               <div className="relative">
                 <button

@@ -31,6 +31,7 @@ export default function EditAgentPage() {
     password: "",
     referral_code: "",
     status: "active",
+    can_create_booking_codes: false,
   });
 
   React.useEffect(() => {
@@ -49,6 +50,9 @@ export default function EditAgentPage() {
           password: "",
           referral_code: a.referralCode,
           status: a.status,
+          can_create_booking_codes: Boolean(
+            (a as { canCreateBookingCodes?: boolean }).canCreateBookingCodes
+          ),
         });
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Load failed");
@@ -75,6 +79,7 @@ export default function EditAgentPage() {
         parent_agent_id: null,
         referral_code: form.referral_code,
         status: form.status,
+        can_create_booking_codes: form.can_create_booking_codes,
       };
       if (form.password.trim()) body.password = form.password;
       await updateAgent(token, id, body);
@@ -182,6 +187,16 @@ export default function EditAgentPage() {
               <option value="suspended">suspended</option>
             </select>
           </FormField>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.can_create_booking_codes}
+              onChange={(e) =>
+                setForm({ ...form, can_create_booking_codes: e.target.checked })
+              }
+            />
+            Allow booking code generator
+          </label>
         </div>
         {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
         <div className="flex justify-end gap-2">

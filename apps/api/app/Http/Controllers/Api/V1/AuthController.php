@@ -30,6 +30,7 @@ final class AuthController
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'security_pin' => ['required', 'digits:6'],
             'name' => ['nullable', 'string', 'max:120'],
             'referral_code' => ['nullable', 'string', 'max:32'],
         ]);
@@ -54,6 +55,7 @@ final class AuthController
                 'phone' => $phone,
                 'email' => PhoneNormalizer::syntheticEmail($phone),
                 'password' => $data['password'],
+                'security_pin_hash' => Hash::make($data['security_pin']),
                 'role' => UserRole::Customer,
                 'status' => UserStatus::Active,
             ]);
@@ -220,27 +222,18 @@ final class AuthController
         }
         RateLimiter::hit($key, 600);
 
-        $user = User::query()->where('phone', $phone)->where('role', UserRole::Customer)->first();
-        // Always return success shape to avoid phone enumeration; sandbox returns code when user exists.
-        $code = null;
-        if ($user) {
-            $code = (string) random_int(100000, 999999);
-            cache()->put('pwd_reset_code:'.$phone, Hash::make($code), now()->addMinutes(15));
-            $this->audit->log($user, 'auth.password_forgot', $request, [], User::class, $user->id);
-        }
-
+        // No SMS/SMTP: customer resets with security PIN on the next step.
         return ApiResponse::success([
             'sent' => true,
-            // Sandbox only — remove when SMS provider is wired.
-            'sandbox_code' => $code,
-        ], $code ? 'Reset code issued (sandbox)' : 'If the account exists, a reset code was issued');
+            'method' => 'security_pin',
+        ], 'Enter your 6-digit security PIN to reset your password.');
     }
 
     public function resetPassword(Request $request): JsonResponse
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:32'],
-            'code' => ['required', 'string', 'max:12'],
+            'security_pin' => ['required', 'digits:6'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
@@ -249,18 +242,21 @@ final class AuthController
             throw ValidationException::withMessages(['phone' => ['Invalid Ghana mobile number.']]);
         }
 
-        $hashed = cache()->get('pwd_reset_code:'.$phone);
-        if (! $hashed || ! Hash::check($data['code'], $hashed)) {
-            throw ValidationException::withMessages(['code' => ['Invalid or expired reset code.']]);
+        $key = 'pwd-reset-pin:'.$phone.'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return ApiResponse::error('Too many PIN attempts. Try later.', 429);
         }
 
         $user = User::query()->where('phone', $phone)->where('role', UserRole::Customer)->first();
-        if (! $user) {
-            throw ValidationException::withMessages(['phone' => ['Account not found.']]);
+        if (! $user || ! $user->security_pin_hash || ! Hash::check($data['security_pin'], $user->security_pin_hash)) {
+            RateLimiter::hit($key, 600);
+            throw ValidationException::withMessages([
+                'security_pin' => ['Invalid phone number or security PIN.'],
+            ]);
         }
 
         $user->update(['password' => $data['password']]);
-        cache()->forget('pwd_reset_code:'.$phone);
+        RateLimiter::clear($key);
         $this->audit->log($user, 'auth.password_reset', $request, [], User::class, $user->id);
 
         return ApiResponse::success(null, 'Password reset successful');

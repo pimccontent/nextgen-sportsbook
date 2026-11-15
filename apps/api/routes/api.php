@@ -1,13 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AgentPayoutsAdminController;
 use App\Http\Controllers\Api\V1\Admin\AgentsAdminController;
 use App\Http\Controllers\Api\V1\Admin\BannersAdminController;
+use App\Http\Controllers\Api\V1\Admin\BookingCodesAdminController;
+use App\Http\Controllers\Api\V1\Admin\CompetitionsAdminController;
 use App\Http\Controllers\Api\V1\Admin\DepositsAdminController;
 use App\Http\Controllers\Api\V1\Admin\FixturesAdminController;
 use App\Http\Controllers\Api\V1\Admin\SettingsAdminController;
 use App\Http\Controllers\Api\V1\Admin\SettlementAdminController;
 use App\Http\Controllers\Api\V1\Admin\WithdrawalsAdminController;
 use App\Http\Controllers\Api\V1\Agent\AgentPortalController;
+use App\Http\Controllers\Api\V1\Agent\BookingCodesAgentController;
 use App\Http\Controllers\Api\V1\Agent\CommissionController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BetController;
@@ -15,6 +19,7 @@ use App\Http\Controllers\Api\V1\CustomerProfileController;
 use App\Http\Controllers\Api\V1\FixturesController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PublicBannersController;
+use App\Http\Controllers\Api\V1\PublicBookingCodesController;
 use App\Http\Controllers\Api\V1\PublicConfigController;
 use App\Http\Controllers\Api\V1\SportsController;
 use App\Http\Controllers\Api\V1\WalletController;
@@ -25,6 +30,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', HealthController::class);
     Route::get('/public/config', PublicConfigController::class)->middleware('throttle:120,1');
     Route::get('/public/banners', PublicBannersController::class)->middleware('throttle:120,1');
+    Route::get('/public/booking-codes', [PublicBookingCodesController::class, 'index'])->middleware('throttle:60,1');
+    Route::get('/public/booking-codes/{code}', [PublicBookingCodesController::class, 'show'])->middleware('throttle:60,1');
     Route::post('/webhooks/paystack', PaystackWebhookController::class)->middleware('throttle:120,1');
 
     Route::prefix('auth')->group(function () {
@@ -69,6 +76,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/payouts', [AgentPortalController::class, 'payouts']);
         Route::post('/payouts', [AgentPortalController::class, 'requestPayout'])->middleware('throttle:20,1');
         Route::get('/commissions', [CommissionController::class, 'index']);
+        Route::get('/booking-codes', [BookingCodesAgentController::class, 'index']);
+        Route::post('/booking-codes', [BookingCodesAgentController::class, 'store'])->middleware('throttle:30,1');
     });
 
     Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
@@ -115,5 +124,17 @@ Route::prefix('v1')->group(function () {
         Route::get('/agents/{id}', [AgentsAdminController::class, 'show']);
         Route::put('/agents/{id}', [AgentsAdminController::class, 'update'])->middleware('throttle:30,1');
         Route::delete('/agents/{id}', [AgentsAdminController::class, 'destroy'])->middleware('throttle:30,1');
+
+        Route::get('/agent-payouts', [AgentPayoutsAdminController::class, 'index']);
+        Route::post('/agent-payouts/{id}/approve', [AgentPayoutsAdminController::class, 'approve'])->middleware('throttle:30,1');
+        Route::post('/agent-payouts/{id}/reject', [AgentPayoutsAdminController::class, 'reject'])->middleware('throttle:30,1');
+
+        Route::get('/booking-codes', [BookingCodesAdminController::class, 'index']);
+        Route::post('/booking-codes', [BookingCodesAdminController::class, 'store'])->middleware('throttle:30,1');
+        Route::post('/booking-codes/{code}/revoke', [BookingCodesAdminController::class, 'revoke'])->middleware('throttle:30,1');
+
+        Route::get('/competitions', [CompetitionsAdminController::class, 'index']);
+        Route::post('/competitions', [CompetitionsAdminController::class, 'store'])->middleware('throttle:30,1');
+        Route::put('/competitions/{id}', [CompetitionsAdminController::class, 'update'])->middleware('throttle:30,1');
     });
 });

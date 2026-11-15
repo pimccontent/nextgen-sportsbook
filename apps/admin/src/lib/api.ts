@@ -43,10 +43,30 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  const timeoutMs = 12_000;
+  const timeoutCtrl = new AbortController();
+  const timer = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+  const upstream = options.signal;
+  if (upstream) {
+    if (upstream.aborted) timeoutCtrl.abort();
+    else upstream.addEventListener("abort", () => timeoutCtrl.abort(), { once: true });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: timeoutCtrl.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Request timed out — API busy or unreachable", 408);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const json = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
   if (!res.ok || !json?.success) {
@@ -68,7 +88,20 @@ export type SettingsGroup = {
 
 export type PublicConfig = {
   payments?: { mode?: string; provider?: string };
-  meta?: { payments_mode?: string; mock?: boolean };
+  meta?: {
+    payments_mode?: string;
+    mock?: boolean;
+    environment?: string;
+    maintenance?: boolean;
+  };
+  operations?: {
+    environment?: string;
+    maintenance_enabled?: boolean;
+    maintenance_title?: string;
+    maintenance_message?: string;
+    maintenance_eta?: string | null;
+    show_environment_banner?: boolean;
+  };
 };
 
 export const api = {

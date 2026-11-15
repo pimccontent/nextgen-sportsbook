@@ -50,6 +50,20 @@ final class AgentPayoutService
                 throw new InvalidArgumentException('Insufficient available commission.');
             }
 
+            $payout = AgentPayout::query()->create([
+                'tenant_id' => $tenant->id,
+                'agent_id' => $agent->id,
+                'public_id' => 'ap-'.Str::lower(Str::random(12)),
+                'status' => 'pending',
+                'amount_minor' => $amountMinor,
+                'currency' => 'GHS',
+                'idempotency_key' => $idempotencyKey,
+                'payout_method' => $agent->payout_method,
+                'payout_network' => $agent->payout_network,
+                'payout_account' => $agent->payout_account,
+                'payout_account_name' => $agent->payout_account_name,
+            ]);
+
             $remaining = $amountMinor;
             $entries = CommissionEntry::query()
                 ->where('agent_id', $agent->id)
@@ -65,6 +79,7 @@ final class AgentPayoutService
                 if ($entry->amount_minor <= $remaining) {
                     $remaining -= $entry->amount_minor;
                     $entry->status = 'paid';
+                    $entry->agent_payout_id = $payout->id;
                     $entry->save();
                     continue;
                 }
@@ -72,6 +87,7 @@ final class AgentPayoutService
                 $leftover = $entry->amount_minor - $remaining;
                 $entry->amount_minor = $remaining;
                 $entry->status = 'paid';
+                $entry->agent_payout_id = $payout->id;
                 $entry->save();
 
                 CommissionEntry::query()->create([
@@ -93,19 +109,7 @@ final class AgentPayoutService
                 throw new InvalidArgumentException('Could not allocate payout against available commissions.');
             }
 
-            return AgentPayout::query()->create([
-                'tenant_id' => $tenant->id,
-                'agent_id' => $agent->id,
-                'public_id' => 'ap-'.Str::lower(Str::random(12)),
-                'status' => 'pending',
-                'amount_minor' => $amountMinor,
-                'currency' => 'GHS',
-                'idempotency_key' => $idempotencyKey,
-                'payout_method' => $agent->payout_method,
-                'payout_network' => $agent->payout_network,
-                'payout_account' => $agent->payout_account,
-                'payout_account_name' => $agent->payout_account_name,
-            ]);
+            return $payout;
         });
     }
 
@@ -126,12 +130,25 @@ final class AgentPayoutService
         if ($payout->status !== 'pending') {
             throw new RuntimeException('Payout cannot be rejected.');
         }
-        // Sandbox: commissions already marked paid at request time; rejection notes only.
-        $payout->status = 'rejected';
-        $payout->admin_note = $note;
-        $payout->processed_at = now();
-        $payout->save();
 
-        return $payout;
+        return DB::transaction(function () use ($payout, $note) {
+            CommissionEntry::query()
+                ->where('agent_payout_id', $payout->id)
+                ->where('status', 'paid')
+                ->lockForUpdate()
+                ->get()
+                ->each(function (CommissionEntry $entry) {
+                    $entry->status = 'available';
+                    $entry->agent_payout_id = null;
+                    $entry->save();
+                });
+
+            $payout->status = 'rejected';
+            $payout->admin_note = $note;
+            $payout->processed_at = now();
+            $payout->save();
+
+            return $payout->fresh();
+        });
     }
 }

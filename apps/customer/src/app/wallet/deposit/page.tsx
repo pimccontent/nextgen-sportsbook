@@ -21,7 +21,7 @@ export default function DepositPage() {
   const min = config?.wallet.min_deposit_minor ?? 500;
   const max = config?.wallet.max_deposit_minor ?? 1000000;
   const mode = config?.payments.mode ?? "test";
-  const modeLabel = mode === "live" ? "Live payments" : "Sandbox payments";
+  const modeLabel = mode === "live" ? "Live payments" : "Test payments";
 
   React.useEffect(() => {
     if (!loading && !user) router.replace("/login");

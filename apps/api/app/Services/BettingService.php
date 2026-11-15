@@ -102,7 +102,15 @@ final class BettingService
                 throw new InvalidArgumentException('Potential payout exceeds configured max.');
             }
 
-            $this->ledger->reserveStake($wallet, $stakeMinor);
+            $promo = $this->settings->getGroup($tenant, 'promotions')['payload'];
+            $maxBonusStake = max(0, (int) ($promo['max_bonus_stake_minor'] ?? 0));
+            $cashFirst = min($stakeMinor, (int) $wallet->available_minor);
+            $needBonus = $stakeMinor - $cashFirst;
+            $bonusUse = min($needBonus, $maxBonusStake, (int) $wallet->bonus_minor);
+            if ($cashFirst + $bonusUse < $stakeMinor) {
+                throw new InvalidArgumentException('Insufficient cash/bonus balance for this stake.');
+            }
+            $this->ledger->reserveStakeSplit($wallet, $cashFirst, $bonusUse);
 
             $bet = Bet::query()->create([
                 'tenant_id' => $tenant->id,
@@ -112,6 +120,8 @@ final class BettingService
                 'type' => count($resolved) === 1 ? 'single' : 'accumulator',
                 'status' => 'open',
                 'stake_minor' => $stakeMinor,
+                'stake_cash_minor' => $cashFirst,
+                'stake_bonus_minor' => $bonusUse,
                 'potential_return_minor' => $potential,
                 'combined_odds' => round($combined, 4),
                 'idempotency_key' => $idempotencyKey,

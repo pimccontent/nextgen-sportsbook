@@ -80,6 +80,20 @@ export type PublicConfig = {
     responsible_gambling: { title: string; body: string };
     about: { title: string; body: string };
   };
+  operations?: {
+    environment: "sandbox" | "live" | string;
+    maintenance_enabled: boolean;
+    maintenance_title: string;
+    maintenance_message: string;
+    maintenance_eta?: string | null;
+    show_environment_banner?: boolean;
+  };
+  meta?: {
+    mock?: boolean;
+    environment?: string;
+    payments_mode?: string;
+    maintenance?: boolean;
+  };
 };
 
 type BrandContextValue = {

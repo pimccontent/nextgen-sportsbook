@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAgentAuth } from "@/lib/auth-context";
 
@@ -83,69 +82,6 @@ export default function AgentOverviewPage() {
           <Card label="Lifetime earned" value={data ? ghs(data.earnedMinor) : "—"} />
         </div>
       </section>
-
-      <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-3">
-        <QuickLink href="/customers" label="Customers" />
-        <QuickLink href="/commissions" label="Commissions" />
-        <QuickLink href="/profile" label="Profile" />
-      </div>
-
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Recent customers</h2>
-          <Link href="/customers" className="text-xs font-semibold text-[var(--ng-accent)]">
-            View all
-          </Link>
-        </div>
-        {!data || data.recentCustomers.length === 0 ? (
-          <div className="cx-card p-4 text-sm text-[var(--ng-muted)]">
-            No referred customers yet. Share your referral link.
-          </div>
-        ) : (
-          data.recentCustomers.map((c) => (
-            <div key={c.userId} className="cx-card flex items-center justify-between px-4 py-3 text-sm">
-              <p className="font-semibold">{c.name ?? "Customer"}</p>
-              <p className="text-xs text-[var(--ng-muted)]">
-                {c.joinedAt ? new Date(c.joinedAt).toLocaleDateString("en-GB") : "—"}
-              </p>
-            </div>
-          ))
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Recent commissions</h2>
-          <Link href="/commissions" className="text-xs font-semibold text-[var(--ng-accent)]">
-            View all
-          </Link>
-        </div>
-        {!data || data.recentCommissions.length === 0 ? (
-          <div className="cx-card p-4 text-sm text-[var(--ng-muted)]">
-            No commission entries yet.
-          </div>
-        ) : (
-          data.recentCommissions.map((e) => (
-            <div
-              key={e.id}
-              className="cx-card flex items-center justify-between gap-2 px-4 py-3 text-sm"
-            >
-              <div>
-                <p className="font-semibold">{ghs(e.amountMinor)}</p>
-                <p className="text-xs text-[var(--ng-muted)]">
-                  {e.source}
-                  {e.createdAt
-                    ? ` · ${new Date(e.createdAt).toLocaleDateString("en-GB")}`
-                    : ""}
-                </p>
-              </div>
-              <span className="text-[10px] font-bold uppercase text-[var(--ng-muted)]">
-                {e.status}
-              </span>
-            </div>
-          ))
-        )}
-      </section>
     </div>
   );
 }
@@ -158,16 +94,5 @@ function Card({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-0.5 break-words font-display text-base font-bold sm:text-lg">{value}</p>
     </div>
-  );
-}
-
-function QuickLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="rounded-xl border border-[var(--ng-border)] px-3 py-2.5 text-center text-sm font-semibold"
-    >
-      {label}
-    </Link>
   );
 }

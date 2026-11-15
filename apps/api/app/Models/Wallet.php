@@ -12,6 +12,7 @@ class Wallet extends Model
         'user_id',
         'currency',
         'available_minor',
+        'bonus_minor',
         'pending_minor',
         'reserved_minor',
         'version',
@@ -21,6 +22,7 @@ class Wallet extends Model
     {
         return [
             'available_minor' => 'integer',
+            'bonus_minor' => 'integer',
             'pending_minor' => 'integer',
             'reserved_minor' => 'integer',
             'version' => 'integer',

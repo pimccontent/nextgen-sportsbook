@@ -1,0 +1,115 @@
+# Single-VPS stack: Postgres + Redis + API + Customer + Admin + Agent
+# Usage: see scripts/vps-up.sh and docs/architecture/VPS_DEPLOY.md
+#
+# After up:
+#   Customer  http://HOST:3000
+#   Admin     http://HOST:3001
+#   Agent     http://HOST:3002
+#   API       http://HOST:8081/api/v1/health
+
+name: nextgen-vps
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nextgen_sportsbook}
+      POSTGRES_USER: ${POSTGRES_USER:-nextgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_now}
+    volumes:
+      - nextgen_vps_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nextgen} -d ${POSTGRES_DB:-nextgen_sportsbook}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/Dockerfile.api.vps
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8081}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-nextgen_sportsbook}
+      DB_USERNAME: ${POSTGRES_USER:-nextgen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_now}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_CLIENT: phpredis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: array
+    ports:
+      - "${API_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  customer:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/Dockerfile.next
+      args:
+        APP_NAME: customer
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
+        NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - "${CUSTOMER_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/Dockerfile.next
+      args:
+        APP_NAME: admin
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
+        NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - "${ADMIN_PORT:-3001}:3000"
+    depends_on:
+      - api
+
+  agent:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/Dockerfile.next
+      args:
+        APP_NAME: agent
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
+        NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    ports:
+      - "${AGENT_PORT:-3002}:3000"
+    depends_on:
+      - api
+
+volumes:
+  nextgen_vps_pg:

@@ -50,10 +50,30 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  const timeoutMs = 12_000;
+  const timeoutCtrl = new AbortController();
+  const timer = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+  const upstream = options.signal;
+  if (upstream) {
+    if (upstream.aborted) timeoutCtrl.abort();
+    else upstream.addEventListener("abort", () => timeoutCtrl.abort(), { once: true });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: timeoutCtrl.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Request timed out — API busy or unreachable", 408);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const json = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
   if (!res.ok || !json?.success) {
@@ -109,6 +129,7 @@ export const api = {
     }>("/public/banners");
   },
   register(input: {
+    security_pin: string;
     phone: string;
     password: string;
     password_confirmation: string;
@@ -142,14 +163,14 @@ export const api = {
     }, token);
   },
   forgotPassword(phone: string) {
-    return request<{ sent: boolean; sandbox_code?: string | null }>(
+    return request<{ sent: boolean; method?: string }>(
       "/auth/password/forgot",
       { method: "POST", body: JSON.stringify({ phone }) }
     );
   },
   resetPassword(input: {
     phone: string;
-    code: string;
+    security_pin: string;
     password: string;
     password_confirmation: string;
   }) {
@@ -157,6 +178,42 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     });
+  },
+  bookingCodes() {
+    return request<{
+      bookingCodes: Array<{
+        code: string;
+        legsCount: number;
+        createdAt: string | null;
+        expiresAt: string | null;
+      }>;
+    }>("/public/booking-codes");
+  },
+  bookingCode(code: string) {
+    return request<{
+      bookingCode: {
+        code: string;
+        legs: Array<{
+          fixtureId: string;
+          fixtureLabel: string;
+          selectionPublicId: string;
+          marketName: string;
+          label: string;
+          decimalOdds: number;
+        }>;
+      };
+    }>(`/public/booking-codes/${encodeURIComponent(code)}`);
+  },
+  createBookingCode(
+    token: string,
+    role: "admin" | "agent",
+    body: { selection_public_ids: string[]; listed?: boolean }
+  ) {
+    const path =
+      role === "admin" ? "/admin/booking-codes" : "/agent/booking-codes";
+    return request<{
+      bookingCode: { code: string; legs: unknown[]; listed: boolean; status: string };
+    }>(path, { method: "POST", body: JSON.stringify(body) }, token);
   },
   competitions(sport = "football", opts?: { status?: string; activeFixtures?: boolean }) {
     const q = new URLSearchParams({ sport });

@@ -5,6 +5,7 @@ import { api, type SettingsGroup } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
 
 const TABS = [
+  { id: "operations", label: "Operations" },
   { id: "branding", label: "Branding" },
   { id: "locale", label: "Locale" },
   { id: "betting", label: "Betting" },
@@ -21,7 +22,8 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function SettingsPage() {
   const { token } = useAdminAuth();
-  const [tab, setTab] = React.useState<TabId>("branding");
+  const [tab, setTab] = React.useState<TabId>("operations");
+  const [liveConfirm, setLiveConfirm] = React.useState("");
   const [groups, setGroups] = React.useState<Record<string, SettingsGroup>>({});
   const [secrets, setSecrets] = React.useState<
     Record<string, { configured: boolean; hint: string | null }>
@@ -65,8 +67,17 @@ export default function SettingsPage() {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  const liveSaveBlocked =
+    tab === "operations" &&
+    String(draft.environment ?? "sandbox") === "live" &&
+    liveConfirm.trim().toUpperCase() !== "LIVE";
+
   const save = async () => {
     if (!token) return;
+    if (liveSaveBlocked) {
+      setError('Type LIVE to confirm production environment before saving.');
+      return;
+    }
     setSaving(true);
     setStatus(null);
     setError(null);
@@ -74,6 +85,7 @@ export default function SettingsPage() {
       const res = await api.updateSettings(token, tab, draft);
       setGroups((prev) => ({ ...prev, [tab]: res.settings }));
       setStatus(`${tab} saved (v${res.settings.version})`);
+      if (tab === "operations") setLiveConfirm("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -142,6 +154,83 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--text-tertiary)]">Loading…</p>
       ) : (
         <div className="admin-card space-y-4 p-4 sm:p-5">
+          {tab === "operations" && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                <p className="font-semibold text-[var(--text-primary)]">Environment &amp; maintenance</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                  Switching to Live updates payments mode and public banners. It does{" "}
+                  <strong className="text-[var(--text-primary)]">not</strong> by itself enable real
+                  Paystack HTTP rails — see go-live checklist. Maintenance blocks Customer and Agent
+                  apps/APIs; Admin stays available.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select
+                  label="System environment"
+                  value={String(draft.environment ?? "sandbox")}
+                  options={["sandbox", "live"]}
+                  onChange={(v) => {
+                    setField("environment", v);
+                    if (v !== "live") setLiveConfirm("");
+                  }}
+                />
+                <Toggle
+                  label="Show environment banner on Customer/Agent"
+                  checked={draft.show_environment_banner !== false}
+                  onChange={(v) => setField("show_environment_banner", v)}
+                />
+              </div>
+
+              {String(draft.environment ?? "sandbox") === "live" ? (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-amber-200">
+                    Confirm live / production label
+                  </p>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    Type <span className="font-mono text-[var(--text-primary)]">LIVE</span> to allow
+                    saving while environment is live.
+                  </p>
+                  <Field
+                    label="Confirmation"
+                    value={liveConfirm}
+                    onChange={setLiveConfirm}
+                  />
+                </div>
+              ) : null}
+
+              <div className="border-t border-[var(--border-soft)] pt-4 space-y-3">
+                <Toggle
+                  label="Maintenance mode"
+                  checked={Boolean(draft.maintenance_enabled)}
+                  onChange={(v) => setField("maintenance_enabled", v)}
+                />
+                <Field
+                  label="Maintenance title"
+                  value={String(draft.maintenance_title ?? "")}
+                  onChange={(v) => setField("maintenance_title", v)}
+                />
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Maintenance message
+                    <textarea
+                      value={String(draft.maintenance_message ?? "")}
+                      onChange={(e) => setField("maintenance_message", e.target.value)}
+                      rows={3}
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+                <Field
+                  label="ETA (optional text)"
+                  value={String(draft.maintenance_eta ?? "")}
+                  onChange={(v) => setField("maintenance_eta", v || null)}
+                />
+              </div>
+            </div>
+          )}
+
           {tab === "branding" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
@@ -374,7 +463,8 @@ export default function SettingsPage() {
           {tab === "promotions" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <p className="sm:col-span-2 text-xs text-[var(--text-tertiary)]">
-                Sandbox bonuses credit available balance. No wagering engine in v1.
+                Bonuses credit the segregated bonus wallet. Winnings from bonus-funded stakes
+                settle to cash. Withdrawals remain cash-only.
               </p>
               <Toggle
                 label="Top-up bonus enabled"
@@ -386,11 +476,30 @@ export default function SettingsPage() {
                 checked={Boolean(draft.deposit_bonus_first_only)}
                 onChange={(v) => setField("deposit_bonus_first_only", v)}
               />
-              <NumberField
-                label="Top-up bonus (basis points, 1000 = 10%)"
-                value={Number(draft.deposit_bonus_percent_bps ?? 0)}
-                onChange={(v) => setField("deposit_bonus_percent_bps", v)}
-              />
+              <label className={`${labelClass} sm:col-span-2`}>
+                Top-up bonus mode
+                <select
+                  value={String(draft.deposit_bonus_mode ?? "percent")}
+                  onChange={(e) => setField("deposit_bonus_mode", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="percent">Percent of deposit</option>
+                  <option value="fixed">Fixed GHS amount</option>
+                </select>
+              </label>
+              {String(draft.deposit_bonus_mode ?? "percent") === "fixed" ? (
+                <CedisField
+                  label="Top-up bonus fixed amount (GHS)"
+                  minor={Number(draft.deposit_bonus_fixed_minor ?? 0)}
+                  onChangeMinor={(v) => setField("deposit_bonus_fixed_minor", v)}
+                />
+              ) : (
+                <NumberField
+                  label="Top-up bonus (basis points, 1000 = 10%)"
+                  value={Number(draft.deposit_bonus_percent_bps ?? 0)}
+                  onChange={(v) => setField("deposit_bonus_percent_bps", v)}
+                />
+              )}
               <CedisField
                 label="Top-up bonus max (Ghana Cedis)"
                 minor={Number(draft.deposit_bonus_max_minor ?? 0)}
@@ -419,15 +528,39 @@ export default function SettingsPage() {
                 checked={Boolean(draft.win_bonus_enabled)}
                 onChange={(v) => setField("win_bonus_enabled", v)}
               />
-              <NumberField
-                label="Win bonus (basis points of net win)"
-                value={Number(draft.win_bonus_percent_bps ?? 0)}
-                onChange={(v) => setField("win_bonus_percent_bps", v)}
-              />
+              <label className={`${labelClass} sm:col-span-2`}>
+                Win bonus mode
+                <select
+                  value={String(draft.win_bonus_mode ?? "percent")}
+                  onChange={(e) => setField("win_bonus_mode", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="percent">Percent of net win</option>
+                  <option value="fixed">Fixed GHS amount</option>
+                </select>
+              </label>
+              {String(draft.win_bonus_mode ?? "percent") === "fixed" ? (
+                <CedisField
+                  label="Win bonus fixed amount (GHS)"
+                  minor={Number(draft.win_bonus_fixed_minor ?? 0)}
+                  onChangeMinor={(v) => setField("win_bonus_fixed_minor", v)}
+                />
+              ) : (
+                <NumberField
+                  label="Win bonus (basis points of net win)"
+                  value={Number(draft.win_bonus_percent_bps ?? 0)}
+                  onChange={(v) => setField("win_bonus_percent_bps", v)}
+                />
+              )}
               <CedisField
                 label="Win bonus max (Ghana Cedis)"
                 minor={Number(draft.win_bonus_max_minor ?? 0)}
                 onChangeMinor={(v) => setField("win_bonus_max_minor", v)}
+              />
+              <CedisField
+                label="Max stake from bonus per bet (GHS)"
+                minor={Number(draft.max_bonus_stake_minor ?? 0)}
+                onChangeMinor={(v) => setField("max_bonus_stake_minor", v)}
               />
               <div className="sm:col-span-2">
                 <Field
@@ -598,7 +731,7 @@ export default function SettingsPage() {
                 <Select
                   label="Provider"
                   value={String(draft.provider ?? "mock")}
-                  options={["mock", "football_data_org", "thesportsdb"]}
+                  options={["mock", "football_data_org", "thesportsdb", "openligadb"]}
                   onChange={(v) => setField("provider", v)}
                 />
                 <Field
@@ -745,7 +878,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => void save()}
-              disabled={saving}
+              disabled={saving || liveSaveBlocked}
               className="rounded-lg bg-indigo px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
             >
               {saving ? "Saving…" : `Save ${tab}`}

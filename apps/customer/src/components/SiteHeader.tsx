@@ -32,7 +32,11 @@ export function SiteHeader() {
         });
     };
     load();
-    const id = window.setInterval(load, 12000);
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      load();
+    };
+    const id = window.setInterval(tick, 20000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

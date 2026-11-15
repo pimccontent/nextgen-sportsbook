@@ -2,33 +2,27 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
-  const [step, setStep] = React.useState<"request" | "reset">("request");
   const [phone, setPhone] = React.useState("");
-  const [code, setCode] = React.useState("");
+  const [pin, setPin] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const [confirm, setConfirm] = React.useState("");
+  const [step, setStep] = React.useState<"phone" | "reset">("phone");
+  const [status, setStatus] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [hint, setHint] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
 
-  const requestCode = async (e: React.FormEvent) => {
+  const start = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError(null);
-    setHint(null);
+    setBusy(true);
     try {
       const data = await api.forgotPassword(phone);
-      if (data.sandbox_code) {
-        setCode(data.sandbox_code);
-        setHint(`Sandbox code: ${data.sandbox_code}`);
-      } else {
-        setHint("If the account exists, use the SMS code.");
-      }
+      setStatus(data.method === "security_pin"
+        ? "Enter your security PIN and new password."
+        : "Continue with your security PIN.");
       setStep("reset");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Request failed");
@@ -39,16 +33,20 @@ export default function ForgotPasswordPage() {
 
   const reset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    setBusy(true);
     try {
       await api.resetPassword({
         phone,
-        code,
+        security_pin: pin,
         password,
-        password_confirmation: passwordConfirmation,
+        password_confirmation: confirm,
       });
-      router.push("/login");
+      setStatus("Password updated. You can sign in.");
+      setStep("phone");
+      setPin("");
+      setPassword("");
+      setConfirm("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Reset failed");
     } finally {
@@ -59,36 +57,43 @@ export default function ForgotPasswordPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-8">
       <h1 className="cx-title">Reset password</h1>
-      {step === "request" ? (
-        <form onSubmit={requestCode} className="mt-6 space-y-4">
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
+      <p className="mt-2 text-sm text-[var(--ng-muted)]">
+        No email or SMS is required. Use the 6-digit security PIN you set at registration.
+      </p>
+      {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+      {status ? <p className="mt-3 text-sm text-[var(--ng-accent)]">{status}</p> : null}
+
+      {step === "phone" ? (
+        <form className="mt-6 space-y-4" onSubmit={(e) => void start(e)}>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
             Mobile number
             <input
               className="cx-input mt-1.5"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              inputMode="tel"
               required
+              inputMode="tel"
             />
           </label>
-          {error ? <p className="text-sm text-[var(--ng-danger)]">{error}</p> : null}
           <button type="submit" disabled={busy} className="cx-btn w-full">
-            {busy ? "Sending…" : "Send code"}
+            Continue
           </button>
         </form>
       ) : (
-        <form onSubmit={reset} className="mt-6 space-y-4">
-          {hint ? <p className="text-xs text-[var(--ng-accent)]">{hint}</p> : null}
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
-            Code
+        <form className="mt-6 space-y-4" onSubmit={(e) => void reset(e)}>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
+            Security PIN
             <input
               className="cx-input mt-1.5"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
               required
+              inputMode="numeric"
+              minLength={6}
+              maxLength={6}
             />
           </label>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
             New password
             <input
               type="password"
@@ -99,24 +104,24 @@ export default function ForgotPasswordPage() {
               minLength={8}
             />
           </label>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
             Confirm password
             <input
               type="password"
               className="cx-input mt-1.5"
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
               required
               minLength={8}
             />
           </label>
-          {error ? <p className="text-sm text-[var(--ng-danger)]">{error}</p> : null}
           <button type="submit" disabled={busy} className="cx-btn w-full">
-            {busy ? "Saving…" : "Reset password"}
+            Reset password
           </button>
         </form>
       )}
-      <p className="mt-4 text-center text-sm text-[var(--ng-muted)]">
+
+      <p className="mt-6 text-sm text-[var(--ng-muted)]">
         <Link href="/login" className="cx-link">
           Back to login
         </Link>

@@ -126,6 +126,7 @@ final class AgentsAdminController
             'password' => ['nullable', Password::min(8)->letters()->numbers()],
             'referral_code' => ['sometimes', 'string', 'max:32'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
+            'can_create_booking_codes' => ['sometimes', 'boolean'],
         ]);
         $data['parent_agent_id'] = null;
 
@@ -184,6 +185,9 @@ final class AgentsAdminController
             if (isset($data['status'])) {
                 $agentPatch['status'] = $data['status'];
             }
+            if (array_key_exists('can_create_booking_codes', $data)) {
+                $agentPatch['can_create_booking_codes'] = (bool) $data['can_create_booking_codes'];
+            }
             if ($agentPatch !== []) {
                 $agent->update($agentPatch);
             }
@@ -223,6 +227,7 @@ final class AgentsAdminController
             'id' => $a->id,
             'referralCode' => $a->referral_code,
             'status' => $a->status,
+            'canCreateBookingCodes' => (bool) $a->can_create_booking_codes,
             'parentAgentId' => $a->parent_agent_id,
             'parentName' => $a->parent?->user?->name,
             'user' => [

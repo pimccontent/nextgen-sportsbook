@@ -21,6 +21,7 @@ final class WalletService
             [
                 'tenant_id' => $tenantId,
                 'available_minor' => 0,
+                'bonus_minor' => 0,
                 'pending_minor' => 0,
                 'reserved_minor' => 0,
                 'version' => 0,
@@ -33,9 +34,11 @@ final class WalletService
         return [
             'currency' => $wallet->currency,
             'availableMinor' => $wallet->available_minor,
+            'bonusMinor' => $wallet->bonus_minor ?? 0,
             'pendingMinor' => $wallet->pending_minor,
             'reservedMinor' => $wallet->reserved_minor,
-            'label' => 'Sandbox wallet',
+            'withdrawableMinor' => $wallet->available_minor,
+            'label' => 'Wallet',
         ];
     }
 

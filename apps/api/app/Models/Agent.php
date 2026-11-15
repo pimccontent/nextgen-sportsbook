@@ -12,11 +12,19 @@ class Agent extends Model
         'referral_code',
         'parent_agent_id',
         'status',
+        'can_create_booking_codes',
         'payout_method',
         'payout_network',
         'payout_account',
         'payout_account_name',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'can_create_booking_codes' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {

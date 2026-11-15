@@ -15,6 +15,7 @@ type AuthContextValue = {
     phone: string;
     password: string;
     password_confirmation: string;
+    security_pin: string;
     name?: string;
     referral_code?: string;
   }) => Promise<void>;
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone: string;
     password: string;
     password_confirmation: string;
+    security_pin: string;
     name?: string;
     referral_code?: string;
   }) => {

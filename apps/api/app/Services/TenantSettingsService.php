@@ -52,6 +52,13 @@ final class TenantSettingsService
         $defaults = TenantSettingsDefaults::all()[$group];
         $merged = array_replace_recursive($defaults, $payload);
 
+        if ($group === 'operations') {
+            $env = ($merged['environment'] ?? 'sandbox') === 'live' ? 'live' : 'sandbox';
+            $merged['environment'] = $env;
+            $merged['maintenance_enabled'] = (bool) ($merged['maintenance_enabled'] ?? false);
+            $merged['show_environment_banner'] = (bool) ($merged['show_environment_banner'] ?? true);
+        }
+
         $row = TenantSetting::query()->firstOrNew([
             'tenant_id' => $tenant->id,
             'group' => $group,
@@ -62,7 +69,32 @@ final class TenantSettingsService
         $row->version = $isNew ? 1 : ((int) $row->version + 1);
         $row->save();
 
+        if ($group === 'operations') {
+            $this->syncPaymentsModeFromEnvironment($tenant, (string) $merged['environment']);
+        }
+
         return $this->getGroup($tenant, $group);
+    }
+
+    private function syncPaymentsModeFromEnvironment(Tenant $tenant, string $environment): void
+    {
+        $desiredMode = $environment === 'live' ? 'live' : 'test';
+        $payments = $this->getGroup($tenant, 'payments');
+        if (($payments['payload']['mode'] ?? 'test') === $desiredMode) {
+            return;
+        }
+        $defaults = TenantSettingsDefaults::all()['payments'];
+        $merged = array_replace_recursive($defaults, array_merge($payments['payload'], [
+            'mode' => $desiredMode,
+        ]));
+        $row = TenantSetting::query()->firstOrNew([
+            'tenant_id' => $tenant->id,
+            'group' => 'payments',
+        ]);
+        $isNew = ! $row->exists;
+        $row->payload = $merged;
+        $row->version = $isNew ? 1 : ((int) $row->version + 1);
+        $row->save();
     }
 
     public function putSecret(Tenant $tenant, string $key, string $plain): array
@@ -126,6 +158,9 @@ final class TenantSettingsService
         $payments = $all['payments']['payload'];
         $compliance = $all['compliance']['payload'];
         $legal = $all['legal']['payload'] ?? [];
+        $operations = $all['operations']['payload'] ?? [];
+        $environment = ($operations['environment'] ?? 'sandbox') === 'live' ? 'live' : 'sandbox';
+        $maintenanceOn = (bool) ($operations['maintenance_enabled'] ?? false);
 
         // Migrate legacy apple-green accent to golden orange for customer CTAs.
         $accent = strtolower((string) ($branding['color_accent'] ?? ''));
@@ -190,10 +225,20 @@ final class TenantSettingsService
                     'body' => $legal['about_body'] ?? '',
                 ],
             ],
+            'operations' => [
+                'environment' => $environment,
+                'maintenance_enabled' => $maintenanceOn,
+                'maintenance_title' => (string) ($operations['maintenance_title'] ?? "We'll be right back"),
+                'maintenance_message' => (string) ($operations['maintenance_message'] ?? ''),
+                'maintenance_eta' => $operations['maintenance_eta'] ?? null,
+                'show_environment_banner' => (bool) ($operations['show_environment_banner'] ?? true),
+            ],
             'meta' => [
-                'mock' => true,
+                'mock' => $environment !== 'live',
+                'environment' => $environment,
                 'sports_data_mode' => config('services.sports_data_mode', 'mock'),
-                'payments_mode' => $payments['mode'] ?? 'test',
+                'payments_mode' => $payments['mode'] ?? ($environment === 'live' ? 'live' : 'test'),
+                'maintenance' => $maintenanceOn,
             ],
         ];
     }

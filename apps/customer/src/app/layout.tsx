@@ -4,11 +4,13 @@ import { IBM_Plex_Mono, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { BrandProvider } from "@/lib/brand-context";
+import { OperatorProvider } from "@/lib/operator-context";
 import { SlipProvider } from "@/lib/slip-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CustomerShell } from "@/components/CustomerShell";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -68,13 +70,17 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <BrandProvider>
-            <AuthProvider>
-              <SlipProvider>
-                <SiteHeader />
-                <CustomerShell>{children}</CustomerShell>
-                <BottomNavigation />
-              </SlipProvider>
-            </AuthProvider>
+            <MaintenanceGate>
+              <AuthProvider>
+                <OperatorProvider>
+                  <SlipProvider>
+                    <SiteHeader />
+                    <CustomerShell>{children}</CustomerShell>
+                    <BottomNavigation />
+                  </SlipProvider>
+                </OperatorProvider>
+              </AuthProvider>
+            </MaintenanceGate>
           </BrandProvider>
         </ThemeProvider>
       </body>

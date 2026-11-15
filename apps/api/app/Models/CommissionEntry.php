@@ -13,6 +13,7 @@ class CommissionEntry extends Model
         'source',
         'bet_id',
         'payment_intent_id',
+        'agent_payout_id',
         'status',
         'basis_minor',
         'rate_bps',

@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [passwordConfirmation, setPasswordConfirmation] = React.useState("");
+  const [securityPin, setSecurityPin] = React.useState("");
   const [referralCode, setReferralCode] = React.useState("");
   const [accepted, setAccepted] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -45,6 +46,7 @@ export default function RegisterPage() {
               phone,
               password,
               password_confirmation: passwordConfirmation,
+              security_pin: securityPin,
               name: name || undefined,
               referral_code: referralCode.trim() || undefined,
             });
@@ -95,6 +97,19 @@ export default function RegisterPage() {
             className="cx-input mt-1.5"
             required
             minLength={8}
+          />
+        </label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
+          Security PIN (6 digits)
+          <input
+            value={securityPin}
+            onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            className="cx-input mt-1.5"
+            required
+            inputMode="numeric"
+            minLength={6}
+            maxLength={6}
+            placeholder="Used to reset password"
           />
         </label>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">

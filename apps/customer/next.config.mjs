@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   transpilePackages: [
     "@nextgen/ui",
     "@nextgen/design-system",

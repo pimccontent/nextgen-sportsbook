@@ -54,7 +54,13 @@ final class SettlementService
             $stake = $bet->stake_minor;
 
             if ($allVoid) {
-                $this->ledger->releaseReservedToAvailable($wallet, $stake);
+                $cash = (int) ($bet->stake_cash_minor ?: $stake);
+                $bonus = (int) ($bet->stake_bonus_minor ?: 0);
+                if ($cash + $bonus !== $stake) {
+                    $cash = $stake;
+                    $bonus = 0;
+                }
+                $this->ledger->releaseReservedSplit($wallet, $cash, $bonus);
                 $this->ledger->post(
                     $tenant,
                     'bet-void:'.$bet->public_id,

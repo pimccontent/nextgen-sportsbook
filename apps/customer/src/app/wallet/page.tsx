@@ -11,6 +11,8 @@ export default function WalletPage() {
   const { token, user, loading: authLoading } = useAuth();
   const [wallet, setWallet] = React.useState<{
     availableMinor: number;
+    bonusMinor?: number;
+    withdrawableMinor?: number;
     pendingMinor: number;
     reservedMinor: number;
   } | null>(null);
@@ -61,22 +63,22 @@ export default function WalletPage() {
 
       <div className="cx-card mt-4 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
-          Available
+          Cash (withdrawable)
         </p>
         <p className="ng-tabular mt-1 text-3xl font-bold text-[var(--ng-accent)]">
           {formatGhs(wallet?.availableMinor ?? 0)}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-[11px] text-[var(--ng-muted)]">Reserved</p>
+            <p className="text-[11px] text-[var(--ng-muted)]">Bonus (betting only)</p>
             <p className="ng-tabular font-semibold">
-              {formatGhs(wallet?.reservedMinor ?? 0)}
+              {formatGhs(wallet?.bonusMinor ?? 0)}
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-[var(--ng-muted)]">Pending</p>
+            <p className="text-[11px] text-[var(--ng-muted)]">Reserved</p>
             <p className="ng-tabular font-semibold">
-              {formatGhs(wallet?.pendingMinor ?? 0)}
+              {formatGhs(wallet?.reservedMinor ?? 0)}
             </p>
           </div>
         </div>

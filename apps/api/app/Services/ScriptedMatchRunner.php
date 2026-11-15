@@ -89,7 +89,6 @@ final class ScriptedMatchRunner
                 $event->refresh();
             }
 
-            // Display minute within current period for customer clock.
             $this->updateDisplayClock($event, $script, $elapsed);
         });
     }
@@ -110,12 +109,31 @@ final class ScriptedMatchRunner
             if ($row->to_period === 'HT') {
                 $event->clock_started_at = null;
                 $event->minute = 45;
+                $event->extra_time_minute = null;
             } elseif ($row->to_period === '2H') {
                 $event->clock_started_at = now();
                 $event->minute = 45;
+                $event->extra_time_minute = null;
             } elseif ($row->to_period === '1H') {
                 $event->clock_started_at = $event->kickoff_at;
                 $event->minute = 0;
+                $event->extra_time_minute = null;
+            } elseif ($row->to_period === 'FT') {
+                $event->clock_started_at = null;
+                $event->minute = 90;
+                $event->extra_time_minute = null;
+            } elseif ($row->to_period === 'ET1') {
+                $event->clock_started_at = now();
+                $event->minute = 90;
+                $event->extra_time_minute = 0;
+            } elseif ($row->to_period === 'ET2') {
+                $event->clock_started_at = now();
+                $event->minute = 105;
+                $event->extra_time_minute = 0;
+            } elseif ($row->to_period === 'PEN') {
+                $event->clock_started_at = null;
+                $event->minute = 120;
+                $event->extra_time_minute = null;
             }
             $event->save();
         }
@@ -127,20 +145,27 @@ final class ScriptedMatchRunner
             $script->completed_at = now();
             $script->save();
 
+            $settleHome = $script->planned_et_score_home ?? $script->planned_score_home;
+            $settleAway = $script->planned_et_score_away ?? $script->planned_score_away;
+            $result = (string) $script->planned_result_side;
+            if ($script->planned_pen_outcome && in_array($script->planned_pen_outcome, ['home', 'away'], true)) {
+                $result = $script->planned_pen_outcome;
+            }
+
             if ($script->auto_settle) {
                 $this->settlement->finishAndSettle(
                     $event,
-                    (string) $script->planned_result_side,
-                    (int) $script->planned_score_home,
-                    (int) $script->planned_score_away,
+                    $result,
+                    (int) $settleHome,
+                    (int) $settleAway,
                 );
             } else {
                 $event->status = EventStatus::Finished;
                 $event->period = 'FT';
                 $event->clock_started_at = null;
-                $event->result_side = $script->planned_result_side;
-                $event->score_home = $script->planned_score_home;
-                $event->score_away = $script->planned_score_away;
+                $event->result_side = $result;
+                $event->score_home = $settleHome;
+                $event->score_away = $settleAway;
                 $event->save();
             }
 
@@ -156,15 +181,31 @@ final class ScriptedMatchRunner
         if ($event->status !== EventStatus::Live) {
             return;
         }
-        $half = max(1, (int) $script->half_length_seconds);
+        $first = max(1, (int) ($script->first_half_seconds ?: $script->half_length_seconds));
+        $second = max(1, (int) ($script->second_half_seconds ?: $script->half_length_seconds));
         $break = max(1, (int) $script->ht_break_seconds);
+        $etFirst = max(0, (int) $script->et_first_seconds);
+        $etSecond = max(0, (int) $script->et_second_seconds);
+        $etBreak = max(0, (int) $script->et_break_seconds);
 
         if ($event->period === '1H') {
-            $event->minute = (int) min(45, floor(($elapsed / $half) * 45));
+            $event->minute = (int) min(45, floor(($elapsed / $first) * 45));
             $event->save();
         } elseif ($event->period === '2H') {
-            $intoSecond = max(0, $elapsed - $half - $break);
-            $event->minute = (int) min(90, 45 + floor(($intoSecond / $half) * 45));
+            $intoSecond = max(0, $elapsed - $first - $break);
+            $event->minute = (int) min(90, 45 + floor(($intoSecond / $second) * 45));
+            $event->save();
+        } elseif ($event->period === 'ET1' && $etFirst > 0) {
+            $tEt1 = $first + $break + $second + 1;
+            $into = max(0, $elapsed - $tEt1);
+            $event->minute = 90;
+            $event->extra_time_minute = (int) min(15, floor(($into / $etFirst) * 15));
+            $event->save();
+        } elseif ($event->period === 'ET2' && $etSecond > 0) {
+            $tEt2 = $first + $break + $second + 1 + $etFirst + $etBreak;
+            $into = max(0, $elapsed - $tEt2);
+            $event->minute = 105;
+            $event->extra_time_minute = (int) min(15, floor(($into / $etSecond) * 15));
             $event->save();
         }
     }

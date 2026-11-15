@@ -192,9 +192,15 @@ final class FixturesAdminController
             'score_away' => ['nullable', 'integer', 'min:0', 'max:50'],
             'publication_state' => ['nullable', 'in:draft,published,suspended'],
             'admin_locked' => ['nullable', 'boolean'],
+            'competition_id' => ['nullable', 'integer', 'exists:competitions,id'],
             'start_clock' => ['nullable', 'boolean'],
             'stop_clock' => ['nullable', 'boolean'],
         ]);
+
+        if (isset($data['competition_id'])) {
+            $event->competition_id = (int) $data['competition_id'];
+            $event->admin_locked = true;
+        }
 
         if (isset($data['home_name'])) {
             $event->home_name_override = $data['home_name'];
@@ -383,13 +389,24 @@ final class FixturesAdminController
         $data = $request->validate([
             'clock_mode' => ['nullable', 'in:sandbox,live'],
             'half_length_seconds' => ['nullable', 'integer', 'min:10', 'max:5400'],
+            'first_half_seconds' => ['nullable', 'integer', 'min:10', 'max:5400'],
+            'second_half_seconds' => ['nullable', 'integer', 'min:10', 'max:5400'],
             'ht_break_seconds' => ['nullable', 'integer', 'min:5', 'max:1800'],
-            'planned_result_side' => ['required', 'in:home,draw,away'],
+            'et_first_seconds' => ['nullable', 'integer', 'min:0', 'max:1800'],
+            'et_second_seconds' => ['nullable', 'integer', 'min:0', 'max:1800'],
+            'et_break_seconds' => ['nullable', 'integer', 'min:0', 'max:900'],
+            'penalties_enabled' => ['nullable', 'boolean'],
+            'planned_result_side' => ['nullable', 'in:home,draw,away'],
+            'planned_ht_score_home' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'planned_ht_score_away' => ['nullable', 'integer', 'min:0', 'max:20'],
             'planned_score_home' => ['required', 'integer', 'min:0', 'max:20'],
             'planned_score_away' => ['required', 'integer', 'min:0', 'max:20'],
+            'planned_et_score_home' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'planned_et_score_away' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'planned_pen_outcome' => ['nullable', 'in:home,away,none'],
             'auto_settle' => ['nullable', 'boolean'],
             'goals' => ['nullable', 'array'],
-            'goals.*.period' => ['required_with:goals', 'in:1H,2H'],
+            'goals.*.period' => ['required_with:goals', 'in:1H,2H,ET1,ET2'],
             'goals.*.minute' => ['required_with:goals', 'integer', 'min:0', 'max:45'],
             'goals.*.side' => ['required_with:goals', 'in:home,away'],
             'goals.*.player_id' => ['nullable', 'integer'],
@@ -666,6 +683,7 @@ final class FixturesAdminController
         return [
             'id' => $e->public_id,
             'competition' => $e->competition?->name,
+            'competitionId' => $e->competition_id,
             'home' => $e->displayHomeName(),
             'away' => $e->displayAwayName(),
             'kickoffIso' => $e->kickoff_at?->utc()->toIso8601String(),

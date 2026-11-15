@@ -3,6 +3,7 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v
 export type AdminFixture = {
   id: string;
   competition: string;
+  competitionId?: number | null;
   home: string;
   away: string;
   homeShort?: string;
@@ -21,10 +22,21 @@ export type AdminFixture = {
     status: string;
     clockMode: string;
     halfLengthSeconds: number;
+    firstHalfSeconds?: number;
+    secondHalfSeconds?: number;
     htBreakSeconds: number;
+    etFirstSeconds?: number;
+    etSecondSeconds?: number;
+    etBreakSeconds?: number;
+    penaltiesEnabled?: boolean;
     plannedResultSide: string | null;
+    plannedHtScoreHome?: number;
+    plannedHtScoreAway?: number;
     plannedScoreHome: number;
     plannedScoreAway: number;
+    plannedEtScoreHome?: number | null;
+    plannedEtScoreAway?: number | null;
+    plannedPenOutcome?: string | null;
     autoSettle: boolean;
     events?: Array<{
       seq: number;
@@ -100,6 +112,7 @@ export function editStateFromFixture(fx: AdminFixture) {
   return {
     home: fx.home,
     away: fx.away,
+    competitionId: fx.competitionId ?? null,
     kickoff: toLocalInput(fx.kickoffIso),
     endsAt: toLocalInput(fx.endsAtIso),
     period: fx.period ?? "1H",

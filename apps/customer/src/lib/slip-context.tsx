@@ -8,6 +8,16 @@ interface SlipContextValue {
   selectedIds: string[];
   bookingCode: string;
   setBookingCode: (code: string) => void;
+  loadBookingLegs: (
+    legs: Array<{
+      fixtureId: string;
+      fixtureLabel: string;
+      selectionPublicId: string;
+      marketName: string;
+      label: string;
+      decimalOdds: number;
+    }>
+  ) => void;
   toggleSelection: (
     fixture: Fixture,
     selectionId: string,
@@ -71,6 +81,32 @@ export function SlipProvider({ children }: { children: React.ReactNode }) {
 
   const clear = React.useCallback(() => setSelections([]), []);
 
+  const loadBookingLegs = React.useCallback(
+    (
+      legs: Array<{
+        fixtureId: string;
+        fixtureLabel: string;
+        selectionPublicId: string;
+        marketName: string;
+        label: string;
+        decimalOdds: number;
+      }>
+    ) => {
+      setSelections(
+        legs.map((leg) => ({
+          fixtureId: leg.fixtureId,
+          fixtureLabel: leg.fixtureLabel,
+          selectionId: leg.selectionPublicId,
+          marketName: leg.marketName,
+          label: leg.label,
+          decimalOdds: leg.decimalOdds,
+          state: "open" as const,
+        }))
+      );
+    },
+    []
+  );
+
   const estimatedOdds = selections.reduce((acc, s) => acc * s.decimalOdds, 1);
   const selectedIds = selections.map((s) => s.selectionId);
 
@@ -79,6 +115,7 @@ export function SlipProvider({ children }: { children: React.ReactNode }) {
     selectedIds,
     bookingCode,
     setBookingCode,
+    loadBookingLegs,
     toggleSelection,
     removeSelection,
     clear,

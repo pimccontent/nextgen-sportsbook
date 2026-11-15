@@ -118,22 +118,73 @@ final class LedgerService
         $wallet->refresh();
     }
 
-    public function reserveStake(Wallet $wallet, int $amountMinor): void
+    public function creditBonus(Wallet $wallet, int $amountMinor): void
     {
-        if ($wallet->available_minor < $amountMinor) {
-            throw new RuntimeException('Insufficient available balance.');
+        $updated = Wallet::query()
+            ->where('id', $wallet->id)
+            ->where('version', $wallet->version)
+            ->update([
+                'bonus_minor' => $wallet->bonus_minor + $amountMinor,
+                'version' => $wallet->version + 1,
+            ]);
+        if ($updated !== 1) {
+            throw new RuntimeException('Wallet concurrency conflict.');
+        }
+        $wallet->refresh();
+    }
+
+    /**
+     * Cash first, then bonus (bonus capped by caller).
+     *
+     * @return array{cash: int, bonus: int}
+     */
+    public function reserveStakeSplit(Wallet $wallet, int $cashMinor, int $bonusMinor): array
+    {
+        $cashMinor = max(0, $cashMinor);
+        $bonusMinor = max(0, $bonusMinor);
+        $total = $cashMinor + $bonusMinor;
+        if ($wallet->available_minor < $cashMinor || $wallet->bonus_minor < $bonusMinor) {
+            throw new RuntimeException('Insufficient balance for stake.');
         }
         $updated = Wallet::query()
             ->where('id', $wallet->id)
             ->where('version', $wallet->version)
-            ->where('available_minor', '>=', $amountMinor)
+            ->where('available_minor', '>=', $cashMinor)
+            ->where('bonus_minor', '>=', $bonusMinor)
             ->update([
-                'available_minor' => $wallet->available_minor - $amountMinor,
-                'reserved_minor' => $wallet->reserved_minor + $amountMinor,
+                'available_minor' => $wallet->available_minor - $cashMinor,
+                'bonus_minor' => $wallet->bonus_minor - $bonusMinor,
+                'reserved_minor' => $wallet->reserved_minor + $total,
                 'version' => $wallet->version + 1,
             ]);
         if ($updated !== 1) {
             throw new RuntimeException('Unable to reserve stake.');
+        }
+        $wallet->refresh();
+
+        return ['cash' => $cashMinor, 'bonus' => $bonusMinor];
+    }
+
+    public function reserveStake(Wallet $wallet, int $amountMinor): void
+    {
+        $this->reserveStakeSplit($wallet, $amountMinor, 0);
+    }
+
+    public function releaseReservedSplit(Wallet $wallet, int $cashMinor, int $bonusMinor): void
+    {
+        $total = $cashMinor + $bonusMinor;
+        $updated = Wallet::query()
+            ->where('id', $wallet->id)
+            ->where('version', $wallet->version)
+            ->where('reserved_minor', '>=', $total)
+            ->update([
+                'reserved_minor' => $wallet->reserved_minor - $total,
+                'available_minor' => $wallet->available_minor + $cashMinor,
+                'bonus_minor' => $wallet->bonus_minor + $bonusMinor,
+                'version' => $wallet->version + 1,
+            ]);
+        if ($updated !== 1) {
+            throw new RuntimeException('Unable to release reserved funds.');
         }
         $wallet->refresh();
     }

@@ -26,7 +26,23 @@ async function request<T>(
   headers.set("Accept", "application/json");
   if (options.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const timeoutCtrl = new AbortController();
+  const timer = setTimeout(() => timeoutCtrl.abort(), 12_000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: timeoutCtrl.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Request timed out — API busy or unreachable", 408);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const json = (await res.json()) as Envelope<T>;
   if (!res.ok || !json.success) {
     throw new ApiError(json.message ?? "Request failed", res.status);
@@ -60,6 +76,14 @@ export const api = {
         display_name: string;
         logo_url?: string | null;
         color_accent?: string | null;
+      };
+      operations?: {
+        environment?: string;
+        maintenance_enabled?: boolean;
+        maintenance_title?: string;
+        maintenance_message?: string;
+        maintenance_eta?: string | null;
+        show_environment_banner?: boolean;
       };
     }>("/public/config");
   },
@@ -128,6 +152,7 @@ export const api = {
       referralCode: string;
       referralLink: string;
       status: string;
+      canCreateBookingCodes?: boolean;
       payout: {
         method: string | null;
         network: string | null;
@@ -190,5 +215,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }, token);
+  },
+  bookingCodes(token: string) {
+    return request<{
+      bookingCodes: Array<{
+        code: string;
+        legs: unknown[];
+        status: string;
+        listed?: boolean;
+      }>;
+    }>("/agent/booking-codes", {}, token);
   },
 };

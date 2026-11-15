@@ -155,6 +155,7 @@ final class AgentPortalController
             'referralCode' => $agent->referral_code,
             'referralLink' => $origin.'/register?ref='.urlencode($agent->referral_code),
             'status' => $agent->status,
+            'canCreateBookingCodes' => (bool) $agent->can_create_booking_codes,
             'payout' => [
                 'method' => $agent->payout_method,
                 'network' => $agent->payout_network,

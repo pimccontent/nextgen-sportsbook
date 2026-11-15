@@ -33,6 +33,10 @@ export default function AgentCommissionsPage() {
     account: string | null;
     accountName: string | null;
   } | null>(null);
+  const [canCreateCodes, setCanCreateCodes] = React.useState(false);
+  const [bookingCodes, setBookingCodes] = React.useState<
+    Array<{ code: string; legs: unknown[]; status: string; listed?: boolean }>
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [withdrawOpen, setWithdrawOpen] = React.useState(false);
   const [payoutAmount, setPayoutAmount] = React.useState("");
@@ -56,6 +60,14 @@ export default function AgentCommissionsPage() {
       account: profile.payout.account,
       accountName: profile.payout.accountName,
     });
+    const allowed = Boolean(profile.canCreateBookingCodes);
+    setCanCreateCodes(allowed);
+    if (allowed) {
+      const codes = await api.bookingCodes(token);
+      setBookingCodes(codes.bookingCodes);
+    } else {
+      setBookingCodes([]);
+    }
   }, [token]);
 
   React.useEffect(() => {
@@ -114,6 +126,60 @@ export default function AgentCommissionsPage() {
           Request withdrawal
         </button>
       </div>
+
+      {canCreateCodes ? (
+        <section className="cx-card space-y-3 p-4">
+          <h2 className="text-sm font-semibold">Booking codes</h2>
+          <p className="text-xs text-[var(--ng-muted)]">
+            Open the customer sportsbook, build a slip, then Save for code to share.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="cx-btn"
+              onClick={() => {
+                if (!token) return;
+                const origin =
+                  process.env.NEXT_PUBLIC_CUSTOMER_ORIGIN?.replace(/\/$/, "") ||
+                  "http://localhost:3000";
+                window.open(
+                  `${origin}/?booking_builder=1#op=agent:${encodeURIComponent(token)}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+            >
+              Open customer slip builder
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-[var(--ng-border)] px-3 py-2.5 text-sm font-semibold"
+              onClick={() => void reload()}
+            >
+              Refresh codes
+            </button>
+          </div>
+          {bookingCodes.length === 0 ? (
+            <p className="text-xs text-[var(--ng-muted)]">No codes yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {bookingCodes.map((c) => (
+                <div
+                  key={c.code}
+                  className="flex items-center justify-between rounded-lg border border-[var(--ng-border)] px-3 py-2 text-sm"
+                >
+                  <div>
+                    <p className="font-mono font-bold">{c.code}</p>
+                    <p className="text-[10px] uppercase text-[var(--ng-muted)]">
+                      {(c.legs?.length ?? 0)} legs · {c.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Commission entries</h2>

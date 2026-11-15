@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ApiResponseEnvelope;
 use App\Http\Middleware\EnsureUserRole;
+use App\Http\Middleware\RejectDuringMaintenance;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('api', [
             SecurityHeaders::class,
             ApiResponseEnvelope::class,
+            RejectDuringMaintenance::class,
         ]);
 
         $middleware->alias([

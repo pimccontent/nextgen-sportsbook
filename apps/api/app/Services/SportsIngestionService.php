@@ -13,6 +13,7 @@ use App\Models\Team;
 use App\Models\Tenant;
 use App\Services\SportsData\FootballDataOrgProvider;
 use App\Services\SportsData\MockSportsDataProvider;
+use App\Services\SportsData\OpenLigaDbProvider;
 use App\Services\SportsData\SportsFixtureDto;
 use App\Services\SportsData\TheSportsDbProvider;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,7 @@ final class SportsIngestionService
         $provider = match ($providerName) {
             'football_data_org' => new FootballDataOrgProvider,
             'thesportsdb' => new TheSportsDbProvider,
+            'openligadb' => new OpenLigaDbProvider,
             'mock' => new MockSportsDataProvider,
             default => throw new RuntimeException("Unknown sports provider: {$providerName}"),
         };

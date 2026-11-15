@@ -10,6 +10,8 @@ coverage
 *.log
 .DS_Store
 Thumbs.db
+*.tsbuildinfo
+.cursor/
 apps/api/vendor
 apps/api/storage/*.key
 apps/api/bootstrap/cache/*.php
@@ -23,3 +25,8 @@ docker-data
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# Generated deploy package (rebuild: scripts/pack-production-deploy.ps1)
+/production deploy/
+/production-deploy.zip
+.env.vps

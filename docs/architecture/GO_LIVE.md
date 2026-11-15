@@ -17,14 +17,16 @@ enable live money today.
 
 ## Already configurable (Admin Settings)
 
-1. **Payments** — provider, mode (`test` \| `live`), public key, callback/webhook URLs, secret keys.
-2. **Compliance** — jurisdiction, licence label, RG footer/message.
-3. **Wallet / betting** — limits (must be filled with licensed numbers before money live).
-4. **Sports data** — provider + API key (fixture sync ≠ money live).
+1. **Operations** — environment (`sandbox` \| `live`) with typed `LIVE` confirm; maintenance
+   mode (blocks Customer/Agent UI + APIs; Admin stays up); environment banners.
+   Setting environment to `live` also flips `payments.mode` to `live` for chrome/meta.
+2. **Payments** — provider, mode (`test` \| `live`), public key, callback/webhook URLs, secret keys.
+3. **Compliance** — jurisdiction, licence label, RG footer/message.
+4. **Wallet / betting** — limits (must be filled with licensed numbers before money live).
+5. **Sports data** — provider + API key (fixture sync ≠ money live).
 
 Env hint: `PAYMENTS_MODE` in API `config/services.php` (envelope meta). Tenant
-settings `payments.mode` is the operator-facing source of truth for the admin
-status pill.
+settings `operations.environment` + `payments.mode` drive admin status pills.
 
 ## Still hard-sandbox in code (engineering gate)
 

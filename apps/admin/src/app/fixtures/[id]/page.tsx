@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import * as React from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { useAdminAuth } from "@/lib/auth-context";
 import {
   type AdminFixture,
@@ -13,6 +13,95 @@ import {
   fromLocalInput,
   oddsDraftFromFixture,
 } from "@/lib/fixtures-admin";
+
+type DurationPreset = "short" | "demo" | "full" | "custom";
+
+function resultFromScores(home: number, away: number): "home" | "draw" | "away" {
+  if (home > away) return "home";
+  if (away > home) return "away";
+  return "draw";
+}
+
+function applyDurationPreset(
+  preset: DurationPreset,
+  current: {
+    clockMode: "sandbox" | "live";
+    firstHalfSeconds: number;
+    secondHalfSeconds: number;
+    htBreakSeconds: number;
+    etFirstSeconds: number;
+    etSecondSeconds: number;
+    etBreakSeconds: number;
+  }
+) {
+  if (preset === "short") {
+    return {
+      ...current,
+      clockMode: "sandbox" as const,
+      firstHalfSeconds: 60,
+      secondHalfSeconds: 60,
+      htBreakSeconds: 15,
+      etFirstSeconds: 0,
+      etSecondSeconds: 0,
+      etBreakSeconds: 0,
+    };
+  }
+  if (preset === "demo") {
+    return {
+      ...current,
+      clockMode: "sandbox" as const,
+      firstHalfSeconds: 300,
+      secondHalfSeconds: 300,
+      htBreakSeconds: 30,
+      etFirstSeconds: 0,
+      etSecondSeconds: 0,
+      etBreakSeconds: 0,
+    };
+  }
+  if (preset === "full") {
+    return {
+      ...current,
+      clockMode: "live" as const,
+      firstHalfSeconds: 45 * 60,
+      secondHalfSeconds: 45 * 60,
+      htBreakSeconds: 15 * 60,
+      etFirstSeconds: 0,
+      etSecondSeconds: 0,
+      etBreakSeconds: 0,
+    };
+  }
+  return current;
+}
+
+function detectPreset(s: {
+  firstHalfSeconds: number;
+  secondHalfSeconds: number;
+  htBreakSeconds: number;
+  clockMode: string;
+}): DurationPreset {
+  if (
+    s.firstHalfSeconds === 60 &&
+    s.secondHalfSeconds === 60 &&
+    s.htBreakSeconds === 15
+  ) {
+    return "short";
+  }
+  if (
+    s.firstHalfSeconds === 300 &&
+    s.secondHalfSeconds === 300 &&
+    s.htBreakSeconds === 30
+  ) {
+    return "demo";
+  }
+  if (
+    s.firstHalfSeconds === 45 * 60 &&
+    s.secondHalfSeconds === 45 * 60 &&
+    s.clockMode === "live"
+  ) {
+    return "full";
+  }
+  return "custom";
+}
 
 export default function FixtureDetailPage() {
   const params = useParams();
@@ -27,6 +116,7 @@ export default function FixtureDetailPage() {
   const [edit, setEdit] = React.useState<FixtureEditState>({
     home: "",
     away: "",
+    competitionId: null,
     kickoff: "",
     endsAt: "",
     period: "1H",
@@ -37,20 +127,42 @@ export default function FixtureDetailPage() {
   });
   const [scriptForm, setScriptForm] = React.useState({
     clockMode: "sandbox" as "sandbox" | "live",
-    halfLengthSeconds: 60,
+    firstHalfSeconds: 60,
+    secondHalfSeconds: 60,
     htBreakSeconds: 15,
+    etFirstSeconds: 0,
+    etSecondSeconds: 0,
+    etBreakSeconds: 0,
+    penaltiesEnabled: false,
     plannedResultSide: "home" as "home" | "draw" | "away",
+    plannedHtScoreHome: 0,
+    plannedHtScoreAway: 0,
     plannedScoreHome: 1,
     plannedScoreAway: 0,
+    plannedEtScoreHome: 1,
+    plannedEtScoreAway: 0,
+    plannedPenOutcome: "none" as "home" | "away" | "none",
     autoSettle: true,
   });
+  const [durationPreset, setDurationPreset] = React.useState<DurationPreset>("short");
   const [goals, setGoals] = React.useState<
-    Array<{ period: "1H" | "2H"; minute: number; side: "home" | "away"; player_id?: number | null }>
-  >([{ period: "1H", minute: 12, side: "home" }]);
+    Array<{
+      period: "1H" | "2H" | "ET1" | "ET2";
+      minute: number;
+      side: "home" | "away";
+      player_id?: number | null;
+    }>
+  >([]);
   const [players, setPlayers] = React.useState<{
     home: Array<{ id: number; name: string }>;
     away: Array<{ id: number; name: string }>;
   }>({ home: [], away: [] });
+  const [competitions, setCompetitions] = React.useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [showScriptAdvanced, setShowScriptAdvanced] = React.useState(false);
+  const [showManualLive, setShowManualLive] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
 
   const loadDetail = React.useCallback(async () => {
     if (!token || !id) return;
@@ -66,31 +178,53 @@ export default function FixtureDetailPage() {
       setEdit(editStateFromFixture(fx));
       setOddsDraft(oddsDraftFromFixture(fx));
       if (fx.script) {
-        setScriptForm({
+        const first = fx.script.firstHalfSeconds ?? fx.script.halfLengthSeconds ?? 60;
+        const next = {
           clockMode: (fx.script.clockMode as "sandbox" | "live") || "sandbox",
-          halfLengthSeconds: fx.script.halfLengthSeconds || 60,
+          firstHalfSeconds: first,
+          secondHalfSeconds: fx.script.secondHalfSeconds ?? first,
           htBreakSeconds: fx.script.htBreakSeconds || 15,
+          etFirstSeconds: fx.script.etFirstSeconds ?? 0,
+          etSecondSeconds: fx.script.etSecondSeconds ?? 0,
+          etBreakSeconds: fx.script.etBreakSeconds ?? 0,
+          penaltiesEnabled: Boolean(fx.script.penaltiesEnabled),
           plannedResultSide:
             (fx.script.plannedResultSide as "home" | "draw" | "away") || "home",
+          plannedHtScoreHome: fx.script.plannedHtScoreHome ?? 0,
+          plannedHtScoreAway: fx.script.plannedHtScoreAway ?? 0,
           plannedScoreHome: fx.script.plannedScoreHome ?? 0,
           plannedScoreAway: fx.script.plannedScoreAway ?? 0,
+          plannedEtScoreHome: fx.script.plannedEtScoreHome ?? fx.script.plannedScoreHome ?? 0,
+          plannedEtScoreAway: fx.script.plannedEtScoreAway ?? fx.script.plannedScoreAway ?? 0,
+          plannedPenOutcome:
+            (fx.script.plannedPenOutcome as "home" | "away" | "none") || "none",
           autoSettle: fx.script.autoSettle !== false,
-        });
+        };
+        setScriptForm(next);
+        setDurationPreset(detectPreset(next));
         const scriptGoals = (fx.script.events ?? [])
           .filter((e) => e.type === "goal")
-          .map((e) => ({
-            period: (e.atPeriod === "2H" ? "2H" : "1H") as "1H" | "2H",
-            minute: Math.min(
-              45,
-              Math.round(
-                ((e.atElapsedSeconds % Math.max(1, fx.script!.halfLengthSeconds)) /
-                  Math.max(1, fx.script!.halfLengthSeconds)) *
-                  45
-              )
-            ),
-            side: (e.side === "away" ? "away" : "home") as "home" | "away",
-          }));
-        if (scriptGoals.length) setGoals(scriptGoals);
+          .map((e) => {
+            const period = (["1H", "2H", "ET1", "ET2"].includes(e.atPeriod)
+              ? e.atPeriod
+              : "1H") as "1H" | "2H" | "ET1" | "ET2";
+            return {
+              period,
+              minute: Math.min(45, Math.max(0, Math.round(e.atElapsedSeconds / 10))),
+              side: (e.side === "away" ? "away" : "home") as "home" | "away",
+            };
+          });
+        setGoals(scriptGoals);
+        if (
+          (fx.script.etFirstSeconds ?? 0) > 0 ||
+          fx.script.penaltiesEnabled ||
+          scriptGoals.length > 0
+        ) {
+          setShowScriptAdvanced(true);
+        }
+      }
+      if (fx.status === "live" || fx.status === "finished") {
+        setShowManualLive(true);
       }
       void fixturesAdminFetch<{
         home: Array<{ id: number; name: string }>;
@@ -98,6 +232,11 @@ export default function FixtureDetailPage() {
       }>(token, `/admin/fixtures/${encodeURIComponent(id)}/players`)
         .then((p) => setPlayers({ home: p.home, away: p.away }))
         .catch(() => setPlayers({ home: [], away: [] }));
+      void fixturesAdminFetch<{
+        competitions: Array<{ id: number; name: string }>;
+      }>(token, `/admin/competitions`)
+        .then((c) => setCompetitions(c.competitions ?? []))
+        .catch(() => setCompetitions([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fixture");
       setSelected(null);
@@ -121,6 +260,7 @@ export default function FixtureDetailPage() {
           body: JSON.stringify({
             home_name: edit.home,
             away_name: edit.away,
+            competition_id: edit.competitionId || null,
             kickoff_at: fromLocalInput(edit.kickoff),
             ends_at: fromLocalInput(edit.endsAt),
             period: edit.period,
@@ -133,7 +273,7 @@ export default function FixtureDetailPage() {
         }
       );
       setSelected(data.fixture);
-      setStatus("Match details saved (admin-locked from provider overwrite)");
+      setStatus("Schedule saved");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     }
@@ -180,7 +320,8 @@ export default function FixtureDetailPage() {
       extra: data.fixture.extraTime ?? e.extra,
       period: data.fixture.period ?? e.period,
     }));
-    setStatus(action === "start" ? "Live clock started" : "Clock stopped / frozen");
+    setShowManualLive(true);
+    setStatus(action === "start" ? "Live clock started" : "Clock stopped");
   };
 
   const setPeriod = async (period: string) => {
@@ -262,7 +403,7 @@ export default function FixtureDetailPage() {
       }
     );
     setSelected(data.fixture);
-    setStatus(visible ? "Market visible to customers" : "Market hidden");
+    setStatus(visible ? "Market visible" : "Market hidden");
   };
 
   const updateMarketStatus = async (marketId: string, statusValue: string) => {
@@ -288,7 +429,48 @@ export default function FixtureDetailPage() {
     );
     setSelected(data.fixture);
     setOddsDraft(oddsDraftFromFixture(data.fixture));
-    setStatus("Market removed from customer view");
+    setStatus("Market removed");
+  };
+
+  const derivedFromGoals = React.useMemo(() => {
+    const htHome = goals.filter((g) => g.period === "1H" && g.side === "home").length;
+    const htAway = goals.filter((g) => g.period === "1H" && g.side === "away").length;
+    const ftHome = goals.filter(
+      (g) => (g.period === "1H" || g.period === "2H") && g.side === "home"
+    ).length;
+    const ftAway = goals.filter(
+      (g) => (g.period === "1H" || g.period === "2H") && g.side === "away"
+    ).length;
+    return { htHome, htAway, ftHome, ftAway };
+  }, [goals]);
+
+  const buildScriptBody = () => {
+    const useGoals = goals.length > 0;
+    const home = useGoals ? derivedFromGoals.ftHome : Number(scriptForm.plannedScoreHome);
+    const away = useGoals ? derivedFromGoals.ftAway : Number(scriptForm.plannedScoreAway);
+    const htHome = useGoals ? derivedFromGoals.htHome : Number(scriptForm.plannedHtScoreHome);
+    const htAway = useGoals ? derivedFromGoals.htAway : Number(scriptForm.plannedHtScoreAway);
+    return {
+      clock_mode: scriptForm.clockMode,
+      first_half_seconds: scriptForm.firstHalfSeconds,
+      second_half_seconds: scriptForm.secondHalfSeconds,
+      half_length_seconds: scriptForm.firstHalfSeconds,
+      ht_break_seconds: scriptForm.htBreakSeconds,
+      et_first_seconds: scriptForm.etFirstSeconds,
+      et_second_seconds: scriptForm.etSecondSeconds,
+      et_break_seconds: scriptForm.etBreakSeconds,
+      penalties_enabled: scriptForm.penaltiesEnabled,
+      planned_result_side: resultFromScores(home, away),
+      planned_ht_score_home: htHome,
+      planned_ht_score_away: htAway,
+      planned_score_home: home,
+      planned_score_away: away,
+      planned_et_score_home: scriptForm.etFirstSeconds > 0 ? scriptForm.plannedEtScoreHome : null,
+      planned_et_score_away: scriptForm.etFirstSeconds > 0 ? scriptForm.plannedEtScoreAway : null,
+      planned_pen_outcome: scriptForm.plannedPenOutcome,
+      auto_settle: scriptForm.autoSettle,
+      goals,
+    };
   };
 
   const saveScript = async () => {
@@ -299,19 +481,10 @@ export default function FixtureDetailPage() {
         script: NonNullable<AdminFixture["script"]>;
       }>(token, `/admin/fixtures/${selected.id}/script`, {
         method: "PUT",
-        body: JSON.stringify({
-          clock_mode: scriptForm.clockMode,
-          half_length_seconds: scriptForm.halfLengthSeconds,
-          ht_break_seconds: scriptForm.htBreakSeconds,
-          planned_result_side: scriptForm.plannedResultSide,
-          planned_score_home: scriptForm.plannedScoreHome,
-          planned_score_away: scriptForm.plannedScoreAway,
-          auto_settle: scriptForm.autoSettle,
-          goals,
-        }),
+        body: JSON.stringify(buildScriptBody()),
       });
       setSelected(data.fixture);
-      setStatus(`Script saved (${data.script.status})`);
+      setStatus(`Auto-run saved (${data.script.status})`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Script save failed");
     }
@@ -326,10 +499,51 @@ export default function FixtureDetailPage() {
         { method: "POST" }
       );
       setSelected(data.fixture);
-      setStatus("Script armed — runs automatically at kickoff");
+      setStatus("Armed — goes live automatically at kickoff");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Arm failed");
     }
+  };
+
+  const saveAndArm = async () => {
+    if (!token || !selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await fixturesAdminFetch(token, `/admin/fixtures/${selected.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          home_name: edit.home,
+          away_name: edit.away,
+          competition_id: edit.competitionId || null,
+          kickoff_at: fromLocalInput(edit.kickoff),
+          admin_locked: true,
+        }),
+      });
+      const data = await fixturesAdminFetch<{
+        fixture: AdminFixture;
+        script: NonNullable<AdminFixture["script"]>;
+      }>(token, `/admin/fixtures/${selected.id}/script`, {
+        method: "PUT",
+        body: JSON.stringify(buildScriptBody()),
+      });
+      const armed = await fixturesAdminFetch<{ fixture: AdminFixture }>(
+        token,
+        `/admin/fixtures/${selected.id}/script/arm`,
+        { method: "POST" }
+      );
+      setSelected(armed.fixture ?? data.fixture);
+      setStatus("Saved & armed for kickoff");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save & arm");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickDuration = (preset: DurationPreset) => {
+    setDurationPreset(preset);
+    setScriptForm((s) => applyDurationPreset(preset, s));
   };
 
   if (loading) {
@@ -353,6 +567,10 @@ export default function FixtureDetailPage() {
     );
   }
 
+  const isLive = selected.status === "live";
+  const isFinished = selected.status === "finished";
+  const scriptStatus = selected.script?.status ?? "none";
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -368,7 +586,8 @@ export default function FixtureDetailPage() {
             {selected.home} vs {selected.away}
           </h1>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-            {selected.competition} · {selected.publicationState}
+            {selected.competition} · {selected.status} · {selected.publicationState}
+            {scriptStatus !== "none" ? ` · script ${scriptStatus}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -392,8 +611,15 @@ export default function FixtureDetailPage() {
       {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
+      <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel)] px-3 py-2 text-xs text-[var(--text-tertiary)]">
+        Simple path: set schedule → pick duration → add timed goals (e.g. Home 1H 23′) →{" "}
+        <strong className="text-[var(--text-primary)]">Save &amp; arm</strong>. Customers see each
+        goal only when that minute is reached live — not before kickoff.
+      </p>
+
+      {/* 1. Schedule */}
       <section className="admin-card space-y-4 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">Match details</h2>
+        <h2 className="text-sm font-semibold">1. Schedule</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-[11px] text-[var(--text-tertiary)]">
             Home team
@@ -411,7 +637,29 @@ export default function FixtureDetailPage() {
               className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
             />
           </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
+          <label className="text-[11px] text-[var(--text-tertiary)] sm:col-span-2">
+            Competition
+            <select
+              value={edit.competitionId ?? ""}
+              onChange={(e) =>
+                setEdit({
+                  ...edit,
+                  competitionId: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
+            >
+              <option value="">
+                {selected.competition ? `Current: ${selected.competition}` : "Select competition"}
+              </option>
+              {competitions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-[11px] text-[var(--text-tertiary)] sm:col-span-2">
             Kickoff (UTC)
             <input
               type="datetime-local"
@@ -420,109 +668,357 @@ export default function FixtureDetailPage() {
               className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
             />
           </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Match end (UTC)
-            <input
-              type="datetime-local"
-              value={edit.endsAt}
-              onChange={(e) => setEdit({ ...edit, endsAt: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Score home
-            <input
-              type="number"
-              value={edit.scoreHome}
-              onChange={(e) => setEdit({ ...edit, scoreHome: Number(e.target.value) })}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Score away
-            <input
-              type="number"
-              value={edit.scoreAway}
-              onChange={(e) => setEdit({ ...edit, scoreAway: Number(e.target.value) })}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-          </label>
         </div>
         <button
           type="button"
           onClick={() => void saveMatch()}
-          className="rounded-lg bg-[var(--action-primary)] px-3 py-2 text-xs font-bold text-[var(--action-primary-fg)]"
+          className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-bold"
         >
-          Save match details
+          Save schedule only
         </button>
       </section>
 
-      <section className="admin-card space-y-3 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">Live clock / extra time</h2>
-        <div className="flex flex-wrap gap-2">
-          {["1H", "HT", "2H", "ET1", "ET2", "PEN", "FT"].map((p) => (
+      {/* 2. Auto-run */}
+      <section className="admin-card space-y-4 p-4 sm:p-5">
+        <div>
+          <h2 className="text-sm font-semibold">2. Auto-run (upcoming → live)</h2>
+          <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+            Script status: <strong className="text-[var(--text-primary)]">{scriptStatus}</strong>
+          </p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+            Match length
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {(
+              [
+                ["short", "Short", "~2 min total"],
+                ["demo", "Demo", "~10 min total"],
+                ["full", "Full 90", "Real-time halves"],
+              ] as const
+            ).map(([key, label, hint]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => pickDuration(key)}
+                className={`rounded-lg border px-3 py-2.5 text-left ${
+                  durationPreset === key
+                    ? "border-[var(--action-primary)] bg-[var(--action-primary)]/10"
+                    : "border-[var(--border-default)]"
+                }`}
+              >
+                <p className="text-sm font-semibold">{label}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)]">{hint}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                Timed goals (outcome)
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                Example: Home · 1H · 23′ then Away · 1H · 30′. Score appears for customers when
+                each minute is reached.
+              </p>
+            </div>
             <button
-              key={p}
               type="button"
-              onClick={() => void setPeriod(p)}
-              className={`rounded px-2.5 py-1.5 text-[11px] font-bold ${
-                edit.period === p
-                  ? "bg-[var(--action-primary)] text-[var(--action-primary-fg)]"
-                  : "border border-[var(--border-default)]"
-              }`}
+              className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs font-bold"
+              onClick={() =>
+                setGoals((g) => [...g, { period: "1H", minute: 23, side: "home" }])
+              }
             >
-              {p}
+              + Goal
             </button>
-          ))}
+          </div>
+
+          {goals.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-[var(--border-default)] px-3 py-3 text-[11px] text-[var(--text-tertiary)]">
+              No goals yet — add timed goals above, or leave empty and set a final score in
+              Advanced (goals will be auto-placed).
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {goals.map((g, idx) => {
+                const squad = g.side === "home" ? players.home : players.away;
+                const teamLabel = g.side === "home" ? edit.home || "Home" : edit.away || "Away";
+                return (
+                  <div
+                    key={idx}
+                    className="grid gap-2 rounded-lg border border-[var(--border-soft)] p-2 sm:grid-cols-[1fr_1fr_5rem_1fr_auto]"
+                  >
+                    <select
+                      value={g.side}
+                      onChange={(e) => {
+                        const next = [...goals];
+                        next[idx] = {
+                          ...g,
+                          side: e.target.value as "home" | "away",
+                          player_id: null,
+                        };
+                        setGoals(next);
+                      }}
+                      className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                      aria-label="Scoring team"
+                    >
+                      <option value="home">{edit.home || "Home"}</option>
+                      <option value="away">{edit.away || "Away"}</option>
+                    </select>
+                    <select
+                      value={g.period}
+                      onChange={(e) => {
+                        const next = [...goals];
+                        next[idx] = {
+                          ...g,
+                          period: e.target.value as "1H" | "2H" | "ET1" | "ET2",
+                        };
+                        setGoals(next);
+                      }}
+                      className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                      aria-label="Period"
+                    >
+                      <option value="1H">1st half</option>
+                      <option value="2H">2nd half</option>
+                      <option value="ET1">ET 1st</option>
+                      <option value="ET2">ET 2nd</option>
+                    </select>
+                    <label className="text-[10px] text-[var(--text-tertiary)]">
+                      Min
+                      <input
+                        type="number"
+                        min={1}
+                        max={45}
+                        value={g.minute}
+                        onChange={(e) => {
+                          const next = [...goals];
+                          next[idx] = { ...g, minute: Number(e.target.value) };
+                          setGoals(next);
+                        }}
+                        className="mt-0.5 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    {squad.length > 0 ? (
+                      <select
+                        value={g.player_id ?? ""}
+                        onChange={(e) => {
+                          const next = [...goals];
+                          next[idx] = {
+                            ...g,
+                            player_id: e.target.value ? Number(e.target.value) : null,
+                          };
+                          setGoals(next);
+                        }}
+                        className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                      >
+                        <option value="">{teamLabel} — auto</option>
+                        {squad.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="self-center text-[11px] text-[var(--text-tertiary)]">
+                        No squad
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-red-400"
+                      onClick={() => setGoals((list) => list.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Planned FT{" "}
+            {goals.length > 0
+              ? `${derivedFromGoals.ftHome}–${derivedFromGoals.ftAway}`
+              : `${scriptForm.plannedScoreHome}–${scriptForm.plannedScoreAway}`}
+            {goals.length > 0 ? (
+              <span className="ml-2 text-[11px] font-normal text-[var(--text-tertiary)]">
+                (HT {derivedFromGoals.htHome}–{derivedFromGoals.htAway} from 1H goals)
+              </span>
+            ) : null}
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Minute
-            <input
-              type="number"
-              value={edit.minute}
-              onChange={(e) => setEdit({ ...edit, minute: Number(e.target.value) })}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Extra time (+min)
-            <input
-              type="number"
-              value={edit.extra}
-              onChange={(e) => setEdit({ ...edit, extra: Number(e.target.value) })}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-          </label>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void clock("start")}
-            className="rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-xs font-bold text-[var(--action-primary-fg)]"
-          >
-            Start / resume clock
-          </button>
-          <button
-            type="button"
-            onClick={() => void clock("stop")}
-            className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold"
-          >
-            Stop clock
-          </button>
-          <button
-            type="button"
-            onClick={() => void saveMatch()}
-            className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold"
-          >
-            Save minute/ET
-          </button>
-        </div>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void saveAndArm()}
+          className="w-full rounded-lg bg-[var(--action-primary)] px-3 py-2.5 text-sm font-bold text-[var(--action-primary-fg)] disabled:opacity-60 sm:w-auto"
+        >
+          {busy ? "Working…" : "Save & arm for kickoff"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowScriptAdvanced((v) => !v)}
+          className="flex items-center gap-1 text-xs font-semibold text-[var(--nav-active-fg)]"
+        >
+          {showScriptAdvanced ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+          Advanced (score-only shortcut, ET/pens, custom timing)
+        </button>
+
+        {showScriptAdvanced ? (
+          <div className="space-y-3 border-t border-[var(--border-soft)] pt-3">
+            <p className="text-[11px] text-[var(--text-tertiary)]">
+              Score-only shortcut (used only when the timed goal list is empty — API auto-places
+              goals).
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                FT {edit.home || "Home"}
+                <input
+                  type="number"
+                  min={0}
+                  value={scriptForm.plannedScoreHome}
+                  onChange={(e) =>
+                    setScriptForm((s) => ({
+                      ...s,
+                      plannedScoreHome: Number(e.target.value),
+                      plannedResultSide: resultFromScores(
+                        Number(e.target.value),
+                        s.plannedScoreAway
+                      ),
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                FT {edit.away || "Away"}
+                <input
+                  type="number"
+                  min={0}
+                  value={scriptForm.plannedScoreAway}
+                  onChange={(e) =>
+                    setScriptForm((s) => ({
+                      ...s,
+                      plannedScoreAway: Number(e.target.value),
+                      plannedResultSide: resultFromScores(
+                        s.plannedScoreHome,
+                        Number(e.target.value)
+                      ),
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Clock mode
+                <select
+                  value={scriptForm.clockMode}
+                  onChange={(e) => {
+                    setDurationPreset("custom");
+                    setScriptForm((s) => ({
+                      ...s,
+                      clockMode: e.target.value as "sandbox" | "live",
+                    }));
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                >
+                  <option value="sandbox">Accelerated</option>
+                  <option value="live">Real-time</option>
+                </select>
+              </label>
+              {(
+                [
+                  ["firstHalfSeconds", "1st half (sec)"],
+                  ["secondHalfSeconds", "2nd half (sec)"],
+                  ["htBreakSeconds", "HT break (sec)"],
+                  ["etFirstSeconds", "ET 1st (0=off)"],
+                  ["etSecondSeconds", "ET 2nd"],
+                  ["etBreakSeconds", "ET break"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="text-[11px] text-[var(--text-tertiary)]">
+                  {label}
+                  <input
+                    type="number"
+                    value={scriptForm[key]}
+                    onChange={(e) => {
+                      setDurationPreset("custom");
+                      setScriptForm((s) => ({
+                        ...s,
+                        [key]: Number(e.target.value),
+                      }));
+                    }}
+                    className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                  />
+                </label>
+              ))}
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Penalties
+                <select
+                  value={scriptForm.plannedPenOutcome}
+                  onChange={(e) =>
+                    setScriptForm((s) => ({
+                      ...s,
+                      plannedPenOutcome: e.target.value as "home" | "away" | "none",
+                      penaltiesEnabled: e.target.value !== "none",
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                >
+                  <option value="none">None</option>
+                  <option value="home">Home wins pens</option>
+                  <option value="away">Away wins pens</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={scriptForm.autoSettle}
+                onChange={(e) =>
+                  setScriptForm((s) => ({ ...s, autoSettle: e.target.checked }))
+                }
+              />
+              Auto-settle markets at match end
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void saveScript()}
+                className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-bold"
+              >
+                Save script only
+              </button>
+              <button
+                type="button"
+                onClick={() => void armScript()}
+                className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-bold"
+              >
+                Arm only
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
+      {/* Markets */}
       <section className="admin-card space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Markets & odds</h2>
+          <h2 className="text-sm font-semibold">3. Markets & odds</h2>
           <div className="flex flex-wrap gap-1.5">
             {(
               [
@@ -577,7 +1073,7 @@ export default function FixtureDetailPage() {
                 >
                   {m.status === "suspended" ? "Open" : "Suspend"}
                 </button>
-                {!m.isMain && m.type !== "1x2" ? (
+                {!m.isMain ? (
                   <button
                     type="button"
                     className="rounded px-2 py-1 text-[10px] font-bold text-[var(--status-destructive-fg)]"
@@ -588,32 +1084,25 @@ export default function FixtureDetailPage() {
                 ) : null}
               </div>
             </div>
-            {m.selections.map((s) => (
-              <label
-                key={s.selectionId}
-                className="flex items-center justify-between gap-2 text-sm"
-              >
-                <span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {m.selections.map((s) => (
+                <label key={s.selectionId} className="text-[11px] text-[var(--text-tertiary)]">
                   {s.label}
-                  <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">
-                    {s.outcomeKey || s.side || ""} · {s.state}
-                  </span>
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1.01"
-                  value={oddsDraft[s.selectionId] ?? s.decimalOdds}
-                  onChange={(e) =>
-                    setOddsDraft((d) => ({
-                      ...d,
-                      [s.selectionId]: Number(e.target.value),
-                    }))
-                  }
-                  className="w-28 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5"
-                />
-              </label>
-            ))}
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={oddsDraft[s.selectionId] ?? s.decimalOdds}
+                    onChange={(e) =>
+                      setOddsDraft((d) => ({
+                        ...d,
+                        [s.selectionId]: Number(e.target.value),
+                      }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
         ))}
         <button
@@ -625,240 +1114,129 @@ export default function FixtureDetailPage() {
         </button>
       </section>
 
+      {/* Manual live — collapsed by default for upcoming */}
       <section className="admin-card space-y-3 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">Match script (auto live)</h2>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          Status: {selected.script?.status ?? "none"}. Sandbox clock is accelerated;
-          live uses real half lengths. Scorers only appear when squad data exists.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Clock mode
-            <select
-              value={scriptForm.clockMode}
-              onChange={(e) => {
-                const mode = e.target.value as "sandbox" | "live";
-                setScriptForm((s) => ({
-                  ...s,
-                  clockMode: mode,
-                  halfLengthSeconds: mode === "live" ? 45 * 60 : 60,
-                  htBreakSeconds: mode === "live" ? 15 * 60 : 15,
-                }));
-              }}
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            >
-              <option value="sandbox">Sandbox (accelerated)</option>
-              <option value="live">Live (real-time)</option>
-            </select>
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Planned winner
-            <select
-              value={scriptForm.plannedResultSide}
-              onChange={(e) =>
-                setScriptForm((s) => ({
-                  ...s,
-                  plannedResultSide: e.target.value as "home" | "draw" | "away",
-                }))
-              }
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            >
-              <option value="home">Home</option>
-              <option value="draw">Draw</option>
-              <option value="away">Away</option>
-            </select>
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Half length (seconds)
-            <input
-              type="number"
-              value={scriptForm.halfLengthSeconds}
-              onChange={(e) =>
-                setScriptForm((s) => ({
-                  ...s,
-                  halfLengthSeconds: Number(e.target.value),
-                }))
-              }
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            HT break (seconds)
-            <input
-              type="number"
-              value={scriptForm.htBreakSeconds}
-              onChange={(e) =>
-                setScriptForm((s) => ({
-                  ...s,
-                  htBreakSeconds: Number(e.target.value),
-                }))
-              }
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Planned score home
-            <input
-              type="number"
-              value={scriptForm.plannedScoreHome}
-              onChange={(e) =>
-                setScriptForm((s) => ({
-                  ...s,
-                  plannedScoreHome: Number(e.target.value),
-                }))
-              }
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="text-[11px] text-[var(--text-tertiary)]">
-            Planned score away
-            <input
-              type="number"
-              value={scriptForm.plannedScoreAway}
-              onChange={(e) =>
-                setScriptForm((s) => ({
-                  ...s,
-                  plannedScoreAway: Number(e.target.value),
-                }))
-              }
-              className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
-            />
-          </label>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={scriptForm.autoSettle}
-            onChange={(e) =>
-              setScriptForm((s) => ({ ...s, autoSettle: e.target.checked }))
-            }
-          />
-          Auto-settle markets at full time
-        </label>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-              Goals
+        <button
+          type="button"
+          onClick={() => setShowManualLive((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
+          <div>
+            <h2 className="text-sm font-semibold">Manual live control</h2>
+            <p className="text-[11px] text-[var(--text-tertiary)]">
+              Override clock, period, and score — only if auto-run is not enough
             </p>
-            <button
-              type="button"
-              className="text-xs font-semibold text-[var(--nav-active-fg)]"
-              onClick={() =>
-                setGoals((g) => [...g, { period: "1H", minute: 20, side: "home" }])
-              }
-            >
-              + Goal
-            </button>
           </div>
-          {goals.map((g, idx) => {
-            const squad = g.side === "home" ? players.home : players.away;
-            return (
-              <div key={idx} className="grid gap-2 sm:grid-cols-4">
-                <select
-                  value={g.period}
-                  onChange={(e) => {
-                    const next = [...goals];
-                    next[idx] = { ...g, period: e.target.value as "1H" | "2H" };
-                    setGoals(next);
-                  }}
-                  className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+          {showManualLive || isLive || isFinished ? (
+            <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+          )}
+        </button>
+
+        {showManualLive || isLive || isFinished ? (
+          <div className="space-y-3 border-t border-[var(--border-soft)] pt-3">
+            <div className="flex flex-wrap gap-2">
+              {["1H", "HT", "2H", "ET1", "ET2", "PEN", "FT"].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => void setPeriod(p)}
+                  className={`rounded px-2.5 py-1.5 text-[11px] font-bold ${
+                    edit.period === p
+                      ? "bg-[var(--action-primary)] text-[var(--action-primary-fg)]"
+                      : "border border-[var(--border-default)]"
+                  }`}
                 >
-                  <option value="1H">1H</option>
-                  <option value="2H">2H</option>
-                </select>
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Minute
                 <input
                   type="number"
-                  min={0}
-                  max={45}
-                  value={g.minute}
-                  onChange={(e) => {
-                    const next = [...goals];
-                    next[idx] = { ...g, minute: Number(e.target.value) };
-                    setGoals(next);
-                  }}
-                  className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
-                  placeholder="Min"
+                  value={edit.minute}
+                  onChange={(e) => setEdit({ ...edit, minute: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
                 />
-                <select
-                  value={g.side}
-                  onChange={(e) => {
-                    const next = [...goals];
-                    next[idx] = {
-                      ...g,
-                      side: e.target.value as "home" | "away",
-                      player_id: null,
-                    };
-                    setGoals(next);
-                  }}
-                  className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
-                >
-                  <option value="home">Home</option>
-                  <option value="away">Away</option>
-                </select>
-                {squad.length > 0 ? (
-                  <select
-                    value={g.player_id ?? ""}
-                    onChange={(e) => {
-                      const next = [...goals];
-                      next[idx] = {
-                        ...g,
-                        player_id: e.target.value ? Number(e.target.value) : null,
-                      };
-                      setGoals(next);
-                    }}
-                    className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
-                  >
-                    <option value="">Auto / none</option>
-                    {squad.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-[11px] text-[var(--text-tertiary)] self-center">
-                    No squad — skip scorer
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void saveScript()}
-            className="rounded-lg bg-[var(--action-primary)] px-3 py-2 text-xs font-bold text-[var(--action-primary-fg)]"
-          >
-            Save script
-          </button>
-          <button
-            type="button"
-            onClick={() => void armScript()}
-            className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-bold"
-          >
-            Arm for kickoff
-          </button>
-        </div>
-      </section>
+              </label>
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Extra (+min)
+                <input
+                  type="number"
+                  value={edit.extra}
+                  onChange={(e) => setEdit({ ...edit, extra: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Score home
+                <input
+                  type="number"
+                  value={edit.scoreHome}
+                  onChange={(e) =>
+                    setEdit({ ...edit, scoreHome: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-[11px] text-[var(--text-tertiary)]">
+                Score away
+                <input
+                  type="number"
+                  value={edit.scoreAway}
+                  onChange={(e) =>
+                    setEdit({ ...edit, scoreAway: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void clock("start")}
+                className="rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-xs font-bold text-[var(--action-primary-fg)]"
+              >
+                Start / resume clock
+              </button>
+              <button
+                type="button"
+                onClick={() => void clock("stop")}
+                className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold"
+              >
+                Stop clock
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveMatch()}
+                className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold"
+              >
+                Save live state
+              </button>
+            </div>
 
-      <section className="admin-card space-y-3 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">Settle fixture (all markets)</h2>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          Uses score + 1X2 result to settle Double Chance, BTTS, and Over/Under.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {(["home", "draw", "away", "void"] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => void setResult(r)}
-              className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold uppercase"
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+            <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                Settle all markets
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {(["home", "draw", "away", "void"] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => void setResult(r)}
+                    className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-bold uppercase"
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

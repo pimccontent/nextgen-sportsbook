@@ -15,6 +15,8 @@ class Bet extends Model
         'type',
         'status',
         'stake_minor',
+        'stake_cash_minor',
+        'stake_bonus_minor',
         'potential_return_minor',
         'combined_odds',
         'idempotency_key',
@@ -26,6 +28,8 @@ class Bet extends Model
     {
         return [
             'stake_minor' => 'integer',
+            'stake_cash_minor' => 'integer',
+            'stake_bonus_minor' => 'integer',
             'potential_return_minor' => 'integer',
             'combined_odds' => 'float',
             'placed_at' => 'datetime',

@@ -19,8 +19,13 @@ final class MockSportsDataProvider implements SportsDataProvider
         $other = [
             new SportsFixtureDto('mock:gpl-1', 'GPL', 'Ghana Premier League', 'Ghana', 'Asante Kotoko', 'KOT', 'Hearts of Oak', 'HEA', $now->copy()->addDays(1)->setHour(16)->toIso8601String(), 'upcoming', null, null, false),
             new SportsFixtureDto('mock:gpl-2', 'GPL', 'Ghana Premier League', 'Ghana', 'Medeama', 'MED', 'Bechem United', 'BEC', $now->copy()->addDays(4)->toIso8601String(), 'upcoming', null, null, false),
+            new SportsFixtureDto('mock:gpl-3', 'GPL', 'Ghana Premier League', 'Ghana', 'Dreams FC', 'DRM', 'Accra Lions', 'ACL', $now->copy()->addDays(2)->setHour(15)->toIso8601String(), 'upcoming', null, null, false),
             new SportsFixtureDto('mock:afcon-1', 'AFCON', 'AFCON Qualifiers', 'International', 'Ghana', 'GHA', 'Nigeria', 'NGA', $now->copy()->addDays(5)->toIso8601String(), 'upcoming', null, null, false),
+            new SportsFixtureDto('mock:caf-1', 'CAF', 'CAF Champions League', 'Africa', 'Al Ahly', 'AHL', 'Esperance', 'EST', $now->copy()->addDays(6)->toIso8601String(), 'upcoming', null, null, false),
             new SportsFixtureDto('mock:championship-1', 'ELC', 'Championship', 'England', 'Leeds United', 'LEE', 'Leicester', 'LEI', $now->copy()->addDays(2)->setHour(15)->toIso8601String(), 'upcoming', null, null, false),
+            new SportsFixtureDto('mock:eredivisie-1', 'DED', 'Eredivisie', 'Netherlands', 'Ajax', 'AJX', 'PSV', 'PSV', $now->copy()->addDays(3)->setHour(19)->toIso8601String(), 'upcoming', null, null, false),
+            new SportsFixtureDto('mock:liga-portugal-1', 'PPL', 'Liga Portugal', 'Portugal', 'Benfica', 'BEN', 'Porto', 'POR', $now->copy()->addDays(4)->setHour(20)->toIso8601String(), 'upcoming', null, null, false),
+            new SportsFixtureDto('mock:mls-1', 'MLS', 'MLS', 'USA', 'Inter Miami', 'MIA', 'LAFC', 'LFC', $now->copy()->addDays(5)->setHour(01)->toIso8601String(), 'upcoming', null, null, false),
         ];
 
         $out = [];

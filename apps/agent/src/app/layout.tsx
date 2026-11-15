@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { OpsProvider } from "@/lib/ops-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { AgentShell } from "@/components/AgentShell";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -39,9 +41,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="ng-atmosphere min-h-screen font-body">
         <ThemeProvider>
-          <AuthProvider>
-            <AgentShell>{children}</AgentShell>
-          </AuthProvider>
+          <OpsProvider>
+            <MaintenanceGate>
+              <AuthProvider>
+                <AgentShell>{children}</AgentShell>
+              </AuthProvider>
+            </MaintenanceGate>
+          </OpsProvider>
         </ThemeProvider>
       </body>
     </html>
