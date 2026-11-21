@@ -87,7 +87,17 @@ export type SettingsGroup = {
 };
 
 export type PublicConfig = {
-  payments?: { mode?: string; provider?: string };
+  branding?: {
+    display_name?: string;
+    logo_url?: string | null;
+    favicon_url?: string | null;
+  };
+  payments?: {
+    mode?: string;
+    provider?: string;
+    deposits_enabled?: boolean;
+    mock_deposits?: boolean;
+  };
   meta?: {
     payments_mode?: string;
     mock?: boolean;
@@ -148,6 +158,35 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(input),
     }, token);
+  },
+  async uploadMedia(
+    token: string,
+    file: File,
+    kind: "logo" | "favicon" | "banner" | "image" = "image"
+  ) {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("kind", kind);
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1"}/admin/media`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body,
+      }
+    );
+    const json = (await res.json().catch(() => null)) as {
+      success?: boolean;
+      message?: string;
+      data?: { url: string; path: string; kind: string };
+    } | null;
+    if (!res.ok || !json?.success || !json.data) {
+      throw new Error(json?.message ?? `Upload failed (${res.status})`);
+    }
+    return json.data;
   },
   adminFixtures(token: string) {
     return request<{

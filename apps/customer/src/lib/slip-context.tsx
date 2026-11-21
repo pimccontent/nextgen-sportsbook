@@ -3,6 +3,9 @@
 import * as React from "react";
 import type { Fixture, OddsQuote, SlipSelection } from "@nextgen/shared-types";
 
+const SLIP_STORAGE_KEY = "ng.customer.slip.v1";
+const OPEN_SLIP_FLAG = "ng.customer.openSlip";
+
 interface SlipContextValue {
   selections: SlipSelection[];
   selectedIds: string[];
@@ -26,13 +29,54 @@ interface SlipContextValue {
   removeSelection: (selectionId: string) => void;
   clear: () => void;
   estimatedOdds: number;
+  openSlipNonce: number;
+  requestOpenSlip: () => void;
+  consumeOpenSlipRequest: () => boolean;
 }
 
 const SlipContext = React.createContext<SlipContextValue | null>(null);
 
+function readStoredSlip(): { selections: SlipSelection[]; bookingCode: string } {
+  if (typeof window === "undefined") {
+    return { selections: [], bookingCode: "" };
+  }
+  try {
+    const raw = window.localStorage.getItem(SLIP_STORAGE_KEY);
+    if (!raw) return { selections: [], bookingCode: "" };
+    const parsed = JSON.parse(raw) as {
+      selections?: SlipSelection[];
+      bookingCode?: string;
+    };
+    return {
+      selections: Array.isArray(parsed.selections) ? parsed.selections : [],
+      bookingCode: typeof parsed.bookingCode === "string" ? parsed.bookingCode : "",
+    };
+  } catch {
+    return { selections: [], bookingCode: "" };
+  }
+}
+
 export function SlipProvider({ children }: { children: React.ReactNode }) {
-  const [selections, setSelections] = React.useState<SlipSelection[]>([]);
-  const [bookingCode, setBookingCode] = React.useState("");
+  const stored = React.useMemo(() => readStoredSlip(), []);
+  const [selections, setSelections] = React.useState<SlipSelection[]>(stored.selections);
+  const [bookingCode, setBookingCode] = React.useState(stored.bookingCode);
+  const [hydrated, setHydrated] = React.useState(false);
+  const [openSlipNonce, setOpenSlipNonce] = React.useState(0);
+
+  React.useEffect(() => {
+    const again = readStoredSlip();
+    setSelections(again.selections);
+    setBookingCode(again.bookingCode);
+    setHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    window.localStorage.setItem(
+      SLIP_STORAGE_KEY,
+      JSON.stringify({ selections, bookingCode })
+    );
+  }, [selections, bookingCode, hydrated]);
 
   const toggleSelection = React.useCallback(
     (
@@ -107,6 +151,23 @@ export function SlipProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const requestOpenSlip = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(OPEN_SLIP_FLAG, "1");
+    }
+    setOpenSlipNonce((n) => n + 1);
+  }, []);
+
+  const consumeOpenSlipRequest = React.useCallback(() => {
+    if (typeof window === "undefined") return false;
+    const flag = window.sessionStorage.getItem(OPEN_SLIP_FLAG);
+    if (flag === "1") {
+      window.sessionStorage.removeItem(OPEN_SLIP_FLAG);
+      return true;
+    }
+    return false;
+  }, []);
+
   const estimatedOdds = selections.reduce((acc, s) => acc * s.decimalOdds, 1);
   const selectedIds = selections.map((s) => s.selectionId);
 
@@ -120,6 +181,9 @@ export function SlipProvider({ children }: { children: React.ReactNode }) {
     removeSelection,
     clear,
     estimatedOdds: selections.length ? estimatedOdds : 0,
+    openSlipNonce,
+    requestOpenSlip,
+    consumeOpenSlipRequest,
   };
 
   return <SlipContext.Provider value={value}>{children}</SlipContext.Provider>;

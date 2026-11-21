@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071018"/>
+      <stop offset="0.55" stop-color="#0F1C2E"/>
+      <stop offset="1" stop-color="#1A1206"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1220 210) rotate(90) scale(460 520)">
+      <stop stop-color="#F5A524" stop-opacity="0.7"/>
+      <stop offset="0.55" stop-color="#F5A524" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#F5A524" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pitch" x1="0" y1="480" x2="0" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B3D2E" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#0F4A36" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#083024" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#sky)"/>
+  <rect width="1600" height="700" fill="url(#sun)"/>
+  <rect width="1600" height="700" fill="url(#pitch)"/>
+  <!-- pitch markings -->
+  <ellipse cx="1180" cy="560" rx="320" ry="90" stroke="#F5A524" stroke-opacity="0.35" stroke-width="3" fill="none"/>
+  <path d="M860 560h640" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="2"/>
+  <circle cx="1180" cy="560" r="28" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="2" fill="none"/>
+  <!-- ball -->
+  <circle cx="1288" cy="360" r="78" fill="#F5A524" fill-opacity="0.95"/>
+  <path d="M1288 290l28 48h-56l28-48zm0 140l28-48h-56l28 48zM1224 360h128" stroke="#1A1206" stroke-opacity="0.35" stroke-width="3"/>
+  <path d="M1246 318c18 22 48 34 76 34s58-12 76-34M1246 402c18-22 48-34 76-34s58 12 76 34" stroke="#1A1206" stroke-opacity="0.28" stroke-width="2.5" fill="none"/>
+  <!-- light streaks -->
+  <path d="M80 160c240-40 420 40 620 20s360-80 560-20" stroke="#F5A524" stroke-opacity="0.22" stroke-width="6"/>
+  <path d="M120 220c200-20 360 30 540 10" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="4"/>
+</svg>

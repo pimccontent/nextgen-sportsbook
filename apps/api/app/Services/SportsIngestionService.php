@@ -11,6 +11,7 @@ use App\Models\Sport;
 use App\Models\SportEvent;
 use App\Models\Team;
 use App\Models\Tenant;
+use App\Services\SportsData\EmbeddedWorldLeaguesProvider;
 use App\Services\SportsData\FootballDataOrgProvider;
 use App\Services\SportsData\MockSportsDataProvider;
 use App\Services\SportsData\OpenLigaDbProvider;
@@ -26,9 +27,15 @@ final class SportsIngestionService
     {
     }
 
-    public function sync(Tenant $tenant): array
+    /**
+     * @param  array<string, mixed>  $optionOverrides  Merged over tenant sports_data settings for this run only.
+     */
+    public function sync(Tenant $tenant, array $optionOverrides = []): array
     {
-        $cfg = $this->settings->getGroup($tenant, 'sports_data')['payload'];
+        $cfg = array_replace(
+            $this->settings->getGroup($tenant, 'sports_data')['payload'],
+            $optionOverrides
+        );
         $providerName = (string) ($cfg['provider'] ?? 'mock');
         $apiKey = $this->settings->getSecretPlain($tenant, 'sports_api_key');
 
@@ -36,11 +43,34 @@ final class SportsIngestionService
             'football_data_org' => new FootballDataOrgProvider,
             'thesportsdb' => new TheSportsDbProvider,
             'openligadb' => new OpenLigaDbProvider,
+            'embedded_world' => new EmbeddedWorldLeaguesProvider,
             'mock' => new MockSportsDataProvider,
             default => throw new RuntimeException("Unknown sports provider: {$providerName}"),
         };
 
-        $dtos = $provider->fetchFixtures($apiKey, $cfg);
+        $dtos = [];
+        $providerError = null;
+        try {
+            $dtos = $provider->fetchFixtures($apiKey, $cfg);
+        } catch (RuntimeException $e) {
+            // Keep sync useful when TheSportsDB is rate-limited: still import obscure leagues.
+            $providerError = $e->getMessage();
+            if ($providerName === 'embedded_world' || ! ($cfg['sync_obscure_leagues'] ?? true)) {
+                throw $e;
+            }
+        }
+
+        $obscure = [];
+
+        // Lesser-known leagues: merge embedded catalogue (+ optional live) unless provider is already embedded_world.
+        if ($providerName !== 'embedded_world' && ($cfg['sync_obscure_leagues'] ?? true)) {
+            $obscure = (new EmbeddedWorldLeaguesProvider)->fetchFixtures($apiKey, $cfg);
+        }
+
+        if ($dtos === [] && $obscure === [] && $providerError !== null) {
+            throw new RuntimeException($providerError);
+        }
+
         $imported = 0;
         $updated = 0;
 
@@ -50,22 +80,30 @@ final class SportsIngestionService
         );
 
         foreach ($dtos as $dto) {
-            $result = $this->upsertFixture($football, $dto, $cfg);
+            $result = $this->upsertFixture($football, $dto, $cfg, $providerName);
+            $imported += $result['created'] ? 1 : 0;
+            $updated += $result['created'] ? 0 : 1;
+        }
+
+        foreach ($obscure as $dto) {
+            $result = $this->upsertFixture($football, $dto, $cfg, 'embedded_world');
             $imported += $result['created'] ? 1 : 0;
             $updated += $result['created'] ? 0 : 1;
         }
 
         return [
             'provider' => $providerName,
-            'fetched' => count($dtos),
+            'fetched' => count($dtos) + count($obscure),
+            'obscure_fetched' => count($obscure),
             'created' => $imported,
             'updated' => $updated,
+            'provider_warning' => $providerError,
         ];
     }
 
-    private function upsertFixture(Sport $football, SportsFixtureDto $dto, array $cfg): array
+    private function upsertFixture(Sport $football, SportsFixtureDto $dto, array $cfg, string $providerName): array
     {
-        return DB::transaction(function () use ($football, $dto, $cfg) {
+        return DB::transaction(function () use ($football, $dto, $cfg, $providerName) {
             $compSlug = Str::slug($dto->competitionCode);
             $competition = Competition::query()->updateOrCreate(
                 ['slug' => $compSlug],
@@ -101,7 +139,7 @@ final class SportsIngestionService
                     'status' => EventStatus::from($dto->status),
                     'score_home' => $existing?->score_home ?? $dto->scoreHome,
                     'score_away' => $existing?->score_away ?? $dto->scoreAway,
-                    'provider_source' => 'thesportsdb',
+                    'provider_source' => $providerName,
                     'provider_ingested_at' => now(),
                     'publication_state' => ($cfg['auto_publish'] ?? false)
                         ? PublicationState::Published

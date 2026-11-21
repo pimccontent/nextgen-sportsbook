@@ -47,7 +47,7 @@ export default function BookingCodesAdminPage() {
       <p className="text-sm text-[var(--text-tertiary)]">
         Build slips on the customer sportsbook, save a shareable code, and list it for players.
       </p>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <section className="admin-card space-y-3 p-4">
         <h2 className="text-sm font-semibold">Create slip</h2>
@@ -90,7 +90,7 @@ export default function BookingCodesAdminPage() {
               </div>
               <button
                 type="button"
-                className="text-xs font-semibold text-red-400"
+                className="text-xs font-semibold text-[var(--status-destructive-fg)]"
                 onClick={async () => {
                   if (!token) return;
                   await fetch(`${API}/admin/booking-codes/${c.code}/revoke`, {

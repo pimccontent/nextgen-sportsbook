@@ -14,20 +14,59 @@ export type HeroBanner = {
   sortOrder: number;
 };
 
+const FALLBACK_SLIDES: HeroBanner[] = [
+  {
+    id: "fallback-kickoff",
+    title: "The beautiful game",
+    subtitle: "Stadium nights, packed stands, and football from everywhere.",
+    imageUrl: "/banners/hero-kickoff.jpg",
+    sortOrder: 0,
+  },
+  {
+    id: "fallback-accas",
+    title: "Feel the crowd",
+    subtitle: "Bet with the energy of fans across the world.",
+    imageUrl: "/banners/hero-accas.jpg",
+    sortOrder: 1,
+  },
+  {
+    id: "fallback-live",
+    title: "Every duel counts",
+    subtitle: "Follow footballers in action with live updates.",
+    imageUrl: "/banners/hero-live.jpg",
+    sortOrder: 2,
+  },
+];
+
 export function HeroSlider() {
-  const [banners, setBanners] = React.useState<HeroBanner[]>([]);
+  const [banners, setBanners] = React.useState<HeroBanner[]>(FALLBACK_SLIDES);
   const [index, setIndex] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  const [imgFailed, setImgFailed] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     let cancelled = false;
     void api
       .banners()
       .then((d) => {
-        if (!cancelled) setBanners(d.banners);
+        if (cancelled) return;
+        if (d.banners?.length) {
+          setBanners(
+            d.banners.map((b, i) => ({
+              ...b,
+              // Prefer clean local football photos when API image is missing/broken SVG.
+              imageUrl:
+                b.imageUrl && !b.imageUrl.endsWith(".svg")
+                  ? b.imageUrl
+                  : FALLBACK_SLIDES[i % FALLBACK_SLIDES.length].imageUrl,
+            }))
+          );
+        } else {
+          setBanners(FALLBACK_SLIDES);
+        }
       })
       .catch(() => {
-        if (!cancelled) setBanners([]);
+        if (!cancelled) setBanners(FALLBACK_SLIDES);
       });
     return () => {
       cancelled = true;
@@ -41,6 +80,10 @@ export function HeroSlider() {
     }, 5500);
     return () => window.clearInterval(id);
   }, [banners.length, paused]);
+
+  React.useEffect(() => {
+    setIndex(0);
+  }, [banners]);
 
   if (banners.length === 0) return null;
 
@@ -57,35 +100,46 @@ export function HeroSlider() {
       aria-roledescription="carousel"
       aria-label="Promotions"
     >
-      <div className="relative aspect-[16/7] min-h-[160px] w-full sm:aspect-[21/7] sm:min-h-[200px]">
-        {banners.map((b, i) => (
-          <div
-            key={b.id}
-            className={[
-              "absolute inset-0 transition-opacity duration-700",
-              i === index ? "opacity-100" : "pointer-events-none opacity-0",
-            ].join(" ")}
-            aria-hidden={i !== index}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={b.imageUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent" />
-            <div className="absolute inset-0 flex flex-col justify-end p-4 sm:justify-center sm:p-8 md:p-10">
-              <p className="max-w-xl font-display text-xl font-extrabold tracking-tight text-white sm:text-3xl md:text-4xl">
-                {b.title}
-              </p>
-              {b.subtitle ? (
-                <p className="mt-1.5 max-w-lg text-sm text-white/85 sm:text-base">
-                  {b.subtitle}
-                </p>
+      <div className="relative aspect-[16/7] min-h-[168px] w-full sm:aspect-[21/7] sm:min-h-[210px]">
+        {banners.map((b, i) => {
+          const showImg = Boolean(b.imageUrl) && !imgFailed[b.id];
+          return (
+            <div
+              key={b.id}
+              className={[
+                "absolute inset-0 transition-opacity duration-700",
+                i === index ? "opacity-100" : "pointer-events-none opacity-0",
+                showImg
+                  ? "bg-[#0B1220]"
+                  : "bg-[radial-gradient(ellipse_at_50%_40%,rgba(245,165,36,0.25),transparent_55%),linear-gradient(135deg,#0B1220,#1A1408)]",
+              ].join(" ")}
+              aria-hidden={i !== index}
+            >
+              {showImg ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={b.imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover object-center"
+                  onError={() =>
+                    setImgFailed((prev) => ({ ...prev, [b.id]: true }))
+                  }
+                />
               ) : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-black/25" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center sm:px-10">
+                <p className="max-w-2xl font-display text-xl font-extrabold tracking-tight text-white sm:text-3xl md:text-4xl">
+                  {b.title}
+                </p>
+                {b.subtitle ? (
+                  <p className="mt-2 max-w-xl text-sm text-white/85 sm:mt-3 sm:text-base">
+                    {b.subtitle}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {banners.length > 1 ? (

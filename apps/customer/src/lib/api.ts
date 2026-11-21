@@ -131,6 +131,7 @@ export const api = {
   register(input: {
     security_pin: string;
     phone: string;
+    email: string;
     password: string;
     password_confirmation: string;
     name?: string;

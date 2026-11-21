@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/FormField";
 import { useAdminAuth } from "@/lib/auth-context";
 import { fixturesAdminFetch } from "@/lib/fixtures-admin";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 type Banner = {
   id: string;
@@ -30,7 +31,7 @@ type Banner = {
 const emptyForm = {
   title: "",
   subtitle: "",
-  image_url: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1600&q=80",
+  image_url: "",
   cta_label: "Bet now",
   cta_url: "/",
   sort_order: 0,
@@ -80,6 +81,10 @@ export default function BannersPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (!form.image_url.trim()) {
+      setError("Upload or paste a banner image before saving.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -195,14 +200,16 @@ export default function BannersPage() {
               onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
             />
           </FormField>
-          <FormField label="Image URL">
-            <input
-              className={fieldClass}
-              value={form.image_url}
-              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-              required
-            />
-          </FormField>
+          <ImageUploadField
+            label="Banner image"
+            kind="banner"
+            value={form.image_url}
+            onChange={(v) => setForm({ ...form, image_url: v })}
+            hint="Upload a wide image for the customer hero, or paste a URL."
+          />
+          {!form.image_url ? (
+            <p className="text-xs text-[var(--status-destructive-fg)]">Image is required.</p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="CTA label">
               <input

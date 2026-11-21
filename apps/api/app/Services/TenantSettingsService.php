@@ -159,6 +159,7 @@ final class TenantSettingsService
         $compliance = $all['compliance']['payload'];
         $legal = $all['legal']['payload'] ?? [];
         $operations = $all['operations']['payload'] ?? [];
+        $messaging = $all['customer_messaging']['payload'] ?? [];
         $environment = ($operations['environment'] ?? 'sandbox') === 'live' ? 'live' : 'sandbox';
         $maintenanceOn = (bool) ($operations['maintenance_enabled'] ?? false);
 
@@ -170,6 +171,9 @@ final class TenantSettingsService
         if (empty($branding['color_accent'])) {
             $branding['color_accent'] = '#F5A524';
         }
+
+        $branding['logo_url'] = $this->absoluteMediaUrl($branding['logo_url'] ?? null);
+        $branding['favicon_url'] = $this->absoluteMediaUrl($branding['favicon_url'] ?? null);
 
         return [
             'tenant' => [
@@ -204,6 +208,9 @@ final class TenantSettingsService
                 'provider' => $payments['provider'],
                 'public_key' => $payments['public_key'],
                 'mode' => $payments['mode'],
+                'callback_url' => $payments['callback_url'] ?? null,
+                'deposits_enabled' => app(\App\Services\PaymentService::class)->depositsConfigured($tenant),
+                'mock_deposits' => app(\App\Services\PaymentService::class)->sandboxMockAllowed($tenant),
             ],
             'promotions' => app(\App\Services\BonusService::class)->publicPayload($tenant),
             'compliance' => $compliance,
@@ -231,7 +238,28 @@ final class TenantSettingsService
                 'maintenance_title' => (string) ($operations['maintenance_title'] ?? "We'll be right back"),
                 'maintenance_message' => (string) ($operations['maintenance_message'] ?? ''),
                 'maintenance_eta' => $operations['maintenance_eta'] ?? null,
-                'show_environment_banner' => (bool) ($operations['show_environment_banner'] ?? true),
+                // Live never surfaces an environment banner on customer; sandbox may if enabled.
+                'show_environment_banner' => $environment === 'sandbox'
+                    && (bool) ($operations['show_environment_banner'] ?? false),
+            ],
+            'messaging' => [
+                'popup' => [
+                    'enabled' => (bool) ($messaging['popup_enabled'] ?? false),
+                    'id' => (string) ($messaging['popup_id'] ?? 'welcome'),
+                    'title' => (string) ($messaging['popup_title'] ?? ''),
+                    'body' => (string) ($messaging['popup_body'] ?? ''),
+                    'ctaLabel' => (string) ($messaging['popup_cta_label'] ?? 'Got it'),
+                    'ctaUrl' => $messaging['popup_cta_url'] ?? null,
+                    'dismissible' => (bool) ($messaging['popup_dismissible'] ?? true),
+                ],
+                'toast' => [
+                    'enabled' => (bool) ($messaging['toast_enabled'] ?? false),
+                    'id' => (string) ($messaging['toast_id'] ?? 'notice'),
+                    'message' => (string) ($messaging['toast_message'] ?? ''),
+                    'tone' => in_array(($messaging['toast_tone'] ?? 'info'), ['info', 'success', 'warning'], true)
+                        ? (string) $messaging['toast_tone']
+                        : 'info',
+                ],
             ],
             'meta' => [
                 'mock' => $environment !== 'live',
@@ -260,5 +288,21 @@ final class TenantSettingsService
         if (! in_array($group, TenantSettingsDefaults::groups(), true)) {
             throw new InvalidArgumentException("Unknown settings group: {$group}");
         }
+    }
+
+    private function absoluteMediaUrl(mixed $url): ?string
+    {
+        if (! is_string($url) || trim($url) === '') {
+            return null;
+        }
+        $url = trim($url);
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+        if (str_starts_with($url, '/')) {
+            return rtrim((string) config('app.url'), '/').$url;
+        }
+
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($url, '/');
     }
 }

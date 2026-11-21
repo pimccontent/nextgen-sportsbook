@@ -2,19 +2,50 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useBrand } from "@/lib/brand-context";
 
-export default function LoginPage() {
+function safeNextPath(raw: string | null): string {
+  if (!raw) return "/";
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (decoded.startsWith("/") && !decoded.startsWith("//")) return decoded;
+  } catch {
+    /* ignore */
+  }
+  return "/";
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, error, clearError, user, loading } = useAuth();
-  const [phone, setPhone] = React.useState("0241111111");
-  const [password, setPassword] = React.useState("Password1!");
+  const { config, loading: brandLoading } = useBrand();
+  const isLive = (config?.operations?.environment ?? config?.meta?.environment) === "live";
+  const [phone, setPhone] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  const seeded = React.useRef(false);
+
+  const nextPath = React.useMemo(
+    () => safeNextPath(searchParams.get("next")),
+    [searchParams]
+  );
 
   React.useEffect(() => {
-    if (!loading && user) router.replace("/");
-  }, [loading, user, router]);
+    if (brandLoading || seeded.current) return;
+    seeded.current = true;
+    if (!isLive) {
+      setPhone("0241111111");
+      setPassword("Password1!");
+    }
+  }, [brandLoading, isLive]);
+
+  React.useEffect(() => {
+    if (!loading && user) router.replace(nextPath);
+  }, [loading, user, router, nextPath]);
 
   return (
     <div className="mx-auto max-w-md px-4 py-8">
@@ -27,7 +58,7 @@ export default function LoginPage() {
           setSubmitting(true);
           try {
             await login(phone, password);
-            router.push("/");
+            router.push(nextPath);
           } catch {
             /* context error */
           } finally {
@@ -73,10 +104,27 @@ export default function LoginPage() {
         </Link>
       </p>
       <p className="mt-2 text-center text-sm text-[var(--ng-muted)]">
-        <Link href="/register" className="cx-link">
+        <Link
+          href={`/register?next=${encodeURIComponent(nextPath)}`}
+          className="cx-link"
+        >
           Create account
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md px-4 py-8 text-sm text-[var(--ng-muted)]">
+          Loading…
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

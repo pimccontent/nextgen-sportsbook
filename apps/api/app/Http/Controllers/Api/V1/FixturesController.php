@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\EventStatus;
 use App\Http\Resources\FixtureResource;
 use App\Models\SportEvent;
+use App\Services\FixtureCatalogueRefresh;
 use App\Services\LiveFixtureLifecycle;
 use App\Shared\Http\ApiResponse;
 use Carbon\Carbon;
@@ -15,12 +16,15 @@ final class FixturesController
 {
     public function __construct(
         private readonly LiveFixtureLifecycle $liveLifecycle,
+        private readonly FixtureCatalogueRefresh $catalogueRefresh,
     ) {
     }
 
     public function index(Request $request): JsonResponse
     {
         $this->liveLifecycle->syncDueEvents();
+        // Soft-refresh catalogue after response so customer always gets latest fixtures soon.
+        $this->catalogueRefresh->scheduleIfStale();
 
         $status = $request->query('status');
         $competition = $request->query('competition_id');

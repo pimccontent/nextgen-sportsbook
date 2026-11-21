@@ -43,6 +43,8 @@ final class WalletController
             return ApiResponse::error($e->getMessage(), 422);
         }
 
+        $isMock = (bool) ($intent->provider_payload['mock'] ?? false);
+
         return ApiResponse::success([
             'payment' => [
                 'id' => $intent->id,
@@ -52,7 +54,7 @@ final class WalletController
                 'provider' => $intent->provider,
                 'reference' => $intent->provider_reference,
                 'authorizationUrl' => $intent->authorization_url,
-                'mock' => (bool) ($intent->provider_payload['mock'] ?? true),
+                'mock' => $isMock,
             ],
         ], 'Deposit initiated', 201);
     }
@@ -66,7 +68,8 @@ final class WalletController
         try {
             $intent = $this->payments->completeMockDeposit($data['reference'], $request->user());
         } catch (\RuntimeException $e) {
-            return ApiResponse::error($e->getMessage(), 404);
+            $status = str_contains(strtolower($e->getMessage()), 'not found') ? 404 : 422;
+            return ApiResponse::error($e->getMessage(), $status);
         }
         $wallet = $this->wallets->forUser($request->user());
 
@@ -77,7 +80,7 @@ final class WalletController
                 'reference' => $intent->provider_reference,
             ],
             'wallet' => $this->wallets->payload($wallet->fresh()),
-        ], 'Deposit completed (sandbox)');
+        ], 'Deposit completed');
     }
 
     public function withdraw(Request $request): JsonResponse

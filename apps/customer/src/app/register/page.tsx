@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const { register, error, clearError, user, loading } = useAuth();
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [passwordConfirmation, setPasswordConfirmation] = React.useState("");
   const [securityPin, setSecurityPin] = React.useState("");
@@ -44,6 +45,7 @@ export default function RegisterPage() {
           try {
             await register({
               phone,
+              email,
               password,
               password_confirmation: passwordConfirmation,
               security_pin: securityPin,
@@ -78,6 +80,18 @@ export default function RegisterPage() {
           />
         </label>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="cx-input mt-1.5"
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+        </label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
           Password
           <input
             type="password"
@@ -100,7 +114,7 @@ export default function RegisterPage() {
           />
         </label>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
-          Security PIN (6 digits)
+          Account PIN (6 digits)
           <input
             value={securityPin}
             onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -109,7 +123,7 @@ export default function RegisterPage() {
             inputMode="numeric"
             minLength={6}
             maxLength={6}
-            placeholder="Used to reset password"
+            placeholder="Keep this private"
           />
         </label>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">

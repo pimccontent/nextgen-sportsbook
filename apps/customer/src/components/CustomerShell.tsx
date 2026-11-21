@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BetSlipPeekBar } from "@nextgen/ui";
 import { BetSlipPanel } from "@/components/BetSlipPanel";
 import { useOperatorBuilder } from "@/lib/operator-context";
@@ -9,16 +9,38 @@ import { useSlip } from "@/lib/slip-context";
 
 export function CustomerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { selections, estimatedOdds } = useSlip();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { selections, estimatedOdds, openSlipNonce, consumeOpenSlipRequest } = useSlip();
   const { session, exitBuilder } = useOperatorBuilder();
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const lastNonce = React.useRef(0);
 
   const authPage =
     pathname === "/login" || pathname === "/register" || pathname === "/forgot-password";
 
   React.useEffect(() => {
-    setSheetOpen(false);
-  }, [pathname]);
+    if (authPage) {
+      setSheetOpen(false);
+      return;
+    }
+
+    const fromQuery = searchParams.get("openSlip") === "1";
+    const fromFlag = consumeOpenSlipRequest();
+    const fromNonce = openSlipNonce > lastNonce.current;
+    if (fromNonce) lastNonce.current = openSlipNonce;
+
+    if (fromQuery || fromFlag || fromNonce) {
+      setSheetOpen(true);
+    }
+
+    if (fromQuery) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("openSlip");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }
+  }, [pathname, authPage, searchParams, openSlipNonce, consumeOpenSlipRequest, router]);
 
   return (
     <div className="mx-auto flex max-w-[1440px]">

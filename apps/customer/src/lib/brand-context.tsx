@@ -53,6 +53,9 @@ export type PublicConfig = {
     provider: string;
     public_key: string;
     mode: string;
+    deposits_enabled?: boolean;
+    mock_deposits?: boolean;
+    callback_url?: string | null;
   };
   promotions?: {
     deposit_bonus_enabled?: boolean;
@@ -87,6 +90,23 @@ export type PublicConfig = {
     maintenance_message: string;
     maintenance_eta?: string | null;
     show_environment_banner?: boolean;
+  };
+  messaging?: {
+    popup?: {
+      enabled: boolean;
+      id: string;
+      title: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl?: string | null;
+      dismissible: boolean;
+    };
+    toast?: {
+      enabled: boolean;
+      id: string;
+      message: string;
+      tone: "info" | "success" | "warning" | string;
+    };
   };
   meta?: {
     mock?: boolean;
@@ -149,16 +169,22 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         setConfig(data);
         applyBranding(data.branding);
       } catch {
+        // Never block the app on config failure — render with defaults.
         if (!cancelled && isInitial) setConfig(null);
       } finally {
-        if (!cancelled && isInitial) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     void load(true);
+    // Hard escape hatch: never leave the gate on "Loading…" forever.
+    const failSafe = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 8_000);
     const id = window.setInterval(() => void load(false), 30000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      window.clearTimeout(failSafe);
     };
   }, []);
 

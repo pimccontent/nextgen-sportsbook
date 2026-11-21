@@ -105,6 +105,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [paymentsMode, setPaymentsMode] = useState<"test" | "live">("test");
   const [environment, setEnvironment] = useState<"sandbox" | "live">("sandbox");
   const [maintenanceOn, setMaintenanceOn] = useState(false);
+  const [brandName, setBrandName] = useState("NextGen");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -132,6 +134,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               ?.maintenance_enabled ?? cfg.meta?.maintenance
           )
         );
+        setBrandName(cfg.branding?.display_name || "NextGen");
+        setLogoUrl(cfg.branding?.logo_url ?? null);
       })
       .catch(() => {
         if (!cancelled) {
@@ -215,11 +219,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             ].join(" ")}
           >
             {!collapsed ? (
-              <p className="font-display text-sm font-semibold tracking-tight text-[var(--text-primary)]">
-                NextGen <span className="text-[var(--text-tertiary)]">Admin</span>
-              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" className="h-6 w-auto max-w-[96px] object-contain" />
+                ) : null}
+                <p className="font-display truncate text-sm font-semibold tracking-tight text-[var(--text-primary)]">
+                  {brandName} <span className="text-[var(--text-tertiary)]">Admin</span>
+                </p>
+              </div>
+            ) : logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-6 w-6 object-contain" />
             ) : (
-              <span className="font-display text-sm font-bold text-[var(--accent)]">NG</span>
+              <span className="font-display text-sm font-bold text-[var(--accent)]">
+                {brandName.slice(0, 2).toUpperCase()}
+              </span>
             )}
             <button
               type="button"

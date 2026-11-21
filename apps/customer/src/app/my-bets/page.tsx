@@ -100,7 +100,9 @@ export default function MyBetsPage() {
                     ) : (
                       <Timer className="h-3 w-3 text-[var(--ng-accent)]" />
                     )}
-                    {won ? "Won" : lost ? "Lost" : open ? "In play" : bet.status}
+                    <span className={won ? "text-[var(--ng-win)]" : lost ? "text-[var(--ng-loss)]" : ""}>
+                      {won ? "Won" : lost ? "Lost" : open ? "In play" : bet.status}
+                    </span>
                   </span>
                   <span className="ng-tabular text-[11px] text-[var(--ng-muted)]">
                     @{bet.combinedOdds.toFixed(2)}
@@ -109,9 +111,24 @@ export default function MyBetsPage() {
                 {bet.selections.map((s) => (
                   <p key={s.selectionId} className="mt-2 text-sm font-semibold">
                     {s.label}{" "}
-                    <span className="font-normal text-[var(--ng-muted)]">
+                    <span
+                      className={[
+                        "font-normal",
+                        s.result === "won"
+                          ? "text-[var(--ng-win)]"
+                          : s.result === "lost"
+                            ? "text-[var(--ng-loss)]"
+                            : "text-[var(--ng-muted)]",
+                      ].join(" ")}
+                    >
                       {s.marketName} · {s.decimalOdds.toFixed(2)}
-                      {s.result !== "pending" ? ` · ${s.result}` : ""}
+                      {s.result === "won"
+                        ? " · Won"
+                        : s.result === "lost"
+                          ? " · Lost"
+                          : s.result !== "pending"
+                            ? ` · ${s.result}`
+                            : ""}
                     </span>
                   </p>
                 ))}
@@ -124,12 +141,12 @@ export default function MyBetsPage() {
                       won
                         ? "font-bold text-[var(--ng-win)]"
                         : lost
-                          ? "text-[var(--ng-muted)]"
+                          ? "font-bold text-[var(--ng-loss)]"
                           : "font-semibold text-[var(--ng-accent)]"
                     }
                   >
-                    {won ? "Payout " : "Return "}
-                    {formatGhs(bet.potentialReturnMinor)}
+                    {won ? "Payout " : lost ? "Lost " : "Return "}
+                    {formatGhs(lost ? bet.stakeMinor : bet.potentialReturnMinor)}
                   </span>
                 </div>
               </Link>

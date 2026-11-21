@@ -29,6 +29,7 @@ final class AuthController
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:32'],
+            'email' => ['required', 'email', 'max:190'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
             'security_pin' => ['required', 'digits:6'],
             'name' => ['nullable', 'string', 'max:120'],
@@ -42,18 +43,31 @@ final class AuthController
             ]);
         }
 
+        $email = Str::lower(trim($data['email']));
+        if (str_ends_with($email, '@nextgen.local')) {
+            throw ValidationException::withMessages([
+                'email' => ['Enter a personal email address.'],
+            ]);
+        }
+
         if (User::query()->where('phone', $phone)->exists()) {
             throw ValidationException::withMessages([
                 'phone' => ['An account with this mobile number already exists.'],
             ]);
         }
 
-        $user = DB::transaction(function () use ($data, $phone) {
+        if (User::query()->where('email', $email)->exists()) {
+            throw ValidationException::withMessages([
+                'email' => ['An account with this email already exists.'],
+            ]);
+        }
+
+        $user = DB::transaction(function () use ($data, $phone, $email) {
             $user = User::query()->create([
                 'tenant_id' => \App\Models\Tenant::query()->where('slug', 'default')->value('id'),
                 'name' => $data['name'] ?? 'Customer '.$phone,
                 'phone' => $phone,
-                'email' => PhoneNormalizer::syntheticEmail($phone),
+                'email' => $email,
                 'password' => $data['password'],
                 'security_pin_hash' => Hash::make($data['security_pin']),
                 'role' => UserRole::Customer,
@@ -111,17 +125,18 @@ final class AuthController
             ]);
         }
 
-        $key = 'login:'.Str::lower($data['phone'] ?? $data['email']).'|'.$request->ip();
-        if (RateLimiter::tooManyAttempts($key, 5)) {
+        $identifier = Str::lower((string) ($data['phone'] ?? $data['email']));
+        $key = 'login:'.$identifier;
+        if (RateLimiter::tooManyAttempts($key, 12)) {
             $seconds = RateLimiter::availableIn($key);
 
-            return ApiResponse::error("Too many login attempts. Try again in {$seconds} seconds.", 429);
+            return ApiResponse::error("Too many failed sign-ins. Try again in {$seconds} seconds.", 429);
         }
 
         $user = $this->findUser($data);
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            RateLimiter::hit($key, 60);
+            RateLimiter::hit($key, 120);
             $this->audit->log(null, 'auth.login_failed', $request, [
                 'portal' => $data['portal'],
                 'identifier' => $data['phone'] ?? $data['email'],
@@ -179,6 +194,14 @@ final class AuthController
         $user = $request->user();
         $request->user()->currentAccessToken()?->delete();
 
+        // Clear failed-login counters so a normal logout → login never hits a stale lockout.
+        if ($user->phone) {
+            RateLimiter::clear('login:'.Str::lower($user->phone));
+        }
+        if ($user->email) {
+            RateLimiter::clear('login:'.Str::lower($user->email));
+        }
+
         $this->audit->log($user, 'auth.logout', $request, [], User::class, $user->id);
 
         return ApiResponse::success(null, 'Logged out');
@@ -222,11 +245,10 @@ final class AuthController
         }
         RateLimiter::hit($key, 600);
 
-        // No SMS/SMTP: customer resets with security PIN on the next step.
         return ApiResponse::success([
             'sent' => true,
             'method' => 'security_pin',
-        ], 'Enter your 6-digit security PIN to reset your password.');
+        ], 'Enter your account PIN and choose a new password.');
     }
 
     public function resetPassword(Request $request): JsonResponse
@@ -251,7 +273,7 @@ final class AuthController
         if (! $user || ! $user->security_pin_hash || ! Hash::check($data['security_pin'], $user->security_pin_hash)) {
             RateLimiter::hit($key, 600);
             throw ValidationException::withMessages([
-                'security_pin' => ['Invalid phone number or security PIN.'],
+                'security_pin' => ['Invalid phone number or account PIN.'],
             ]);
         }
 

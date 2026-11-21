@@ -19,10 +19,8 @@ export default function ForgotPasswordPage() {
     setError(null);
     setBusy(true);
     try {
-      const data = await api.forgotPassword(phone);
-      setStatus(data.method === "security_pin"
-        ? "Enter your security PIN and new password."
-        : "Continue with your security PIN.");
+      await api.forgotPassword(phone);
+      setStatus("Enter your account PIN and a new password.");
       setStep("reset");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Request failed");
@@ -58,9 +56,9 @@ export default function ForgotPasswordPage() {
     <div className="mx-auto max-w-md px-4 py-8">
       <h1 className="cx-title">Reset password</h1>
       <p className="mt-2 text-sm text-[var(--ng-muted)]">
-        No email or SMS is required. Use the 6-digit security PIN you set at registration.
+        Enter your mobile number and account PIN to set a new password.
       </p>
-      {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-[var(--ng-danger)]">{error}</p> : null}
       {status ? <p className="mt-3 text-sm text-[var(--ng-accent)]">{status}</p> : null}
 
       {step === "phone" ? (
@@ -82,7 +80,7 @@ export default function ForgotPasswordPage() {
       ) : (
         <form className="mt-6 space-y-4" onSubmit={(e) => void reset(e)}>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-navy-100">
-            Security PIN
+            Account PIN
             <input
               className="cx-input mt-1.5"
               value={pin}

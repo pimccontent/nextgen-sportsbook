@@ -12,7 +12,13 @@ body {
 }
 
 .ng-atmosphere {
-  background: var(--ng-bg) !important;
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% -15%,
+      color-mix(in srgb, var(--ng-accent) 18%, transparent),
+      transparent 70%
+    ),
+    var(--ng-bg) !important;
 }
 
 .cx-page {
@@ -141,12 +147,10 @@ body {
 }
 
 .slip-lost {
-  border-color: color-mix(in srgb, var(--ng-loss) 45%, var(--ng-border));
+  border-color: color-mix(in srgb, var(--ng-loss) 65%, var(--ng-border));
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--ng-loss) 10%, transparent), transparent 40%),
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--ng-loss) 18%, transparent), transparent 55%),
     var(--ng-surface);
-  opacity: 0.92;
-  filter: grayscale(0.25);
 }
 
 @keyframes slip-pop {

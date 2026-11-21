@@ -4,6 +4,7 @@ export type AdminFixture = {
   id: string;
   competition: string;
   competitionId?: number | null;
+  country?: string | null;
   home: string;
   away: string;
   homeShort?: string;
@@ -16,6 +17,7 @@ export type AdminFixture = {
   extraTime?: number | null;
   publicationState: string;
   adminLocked?: boolean;
+  providerSource?: string | null;
   resultSide?: string | null;
   score?: { home: number | null; away: number | null };
   script?: {

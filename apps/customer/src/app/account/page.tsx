@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, type CustomerProfile } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -186,7 +185,6 @@ export default function AccountPage() {
           <h1 className="cx-title truncate">{form.display_name || form.name}</h1>
           <p className="text-xs text-[var(--ng-muted)]">{form.phone}</p>
         </div>
-        <ThemeToggle />
       </div>
 
       <div className="cx-segment mt-4 w-full overflow-x-auto">

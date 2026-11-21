@@ -74,8 +74,8 @@ export default function AgentPayoutsPage() {
       <p className="text-sm text-[var(--text-tertiary)]">
         Approve sandbox payouts or reject to restore commission balance.
       </p>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
+      {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
+      {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
 
       <div className="flex gap-2">
         <button

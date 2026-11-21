@@ -3,18 +3,38 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { FormField, btnPrimaryClass, fieldClass } from "@/components/ui/FormField";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { login, user, loading, error, clearError } = useAdminAuth();
-  const [email, setEmail] = React.useState("admin@nextgen.local");
-  const [password, setPassword] = React.useState("Password1!");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  const seeded = React.useRef(false);
 
   React.useEffect(() => {
     if (!loading && user) router.replace("/");
   }, [loading, user, router]);
+
+  React.useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
+    void api
+      .publicConfig()
+      .then((cfg) => {
+        const env = cfg.operations?.environment ?? cfg.meta?.environment ?? "sandbox";
+        if (env !== "live") {
+          setEmail("admin@nextgen.local");
+          setPassword("Password1!");
+        }
+      })
+      .catch(() => {
+        setEmail("admin@nextgen.local");
+        setPassword("Password1!");
+      });
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +62,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={fieldClass}
               required
+              autoComplete="username"
             />
           </FormField>
           <FormField label="Password">
@@ -51,6 +72,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className={fieldClass}
               required
+              autoComplete="current-password"
             />
           </FormField>
           {error ? (

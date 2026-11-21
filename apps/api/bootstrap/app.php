@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Docker / reverse-proxy: use real client IP for rate limiting when forwarded.
+        $middleware->trustProxies(at: '*');
+
         $middleware->appendToGroup('api', [
             SecurityHeaders::class,
             ApiResponseEnvelope::class,

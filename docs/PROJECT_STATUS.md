@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-15 (production deploy package)
+Last updated: 2026-11-21 (pre-VPS review: obscure sync, hero banners, fixtures table)
 
 ## Current phase
 Platform control expansion (match scripts, booking codes, competitions/feeds, bonus wallet, PIN reset, legal)
@@ -20,6 +20,14 @@ In progress — single-brand white-label sportsbook; sandbox/test money only unt
 - Migrations: `2026_11_13_160000` … `200000` applied
 - **Operations settings:** sandbox ↔ live (confirm `LIVE`) + maintenance mode; Customer/Agent banners & full-page maintenance; branded `error` / `not-found` / `global-error` pages; API `RejectDuringMaintenance` middleware
 - **Production deploy package:** `production deploy/` (+ `production-deploy.zip`) for manual VPS install without GitHub; `bash install.sh`; regenerate via `scripts/pack-production-deploy.ps1`
+- **Customer UX:** no Live environment strip; admin-controlled popup/toast (`Settings → Customer messages`); guest Place bet → login → return with slip open; slip persisted in localStorage
+- **Admin theme:** settings/status colors use day/night CSS tokens (no graphite/indigo hardcodes on Settings)
+- **Fixtures providers (free):** `mock`, `openligadb` (no key), `thesportsdb` (demo key `123`), optional `football-data.org` free token, **`embedded_world`** (curated obscure worldwide leagues offline + optional TheSportsDB live sync with catalogue fallback) — no paid sports API required
+- **Obscure leagues on every sync:** `sync_obscure_leagues` merges embedded worldwide lesser-known leagues even when provider is `thesportsdb` (live when possible, catalogue fallback); admin fixtures table has filter/sort/select-delete/pagination + row quick actions
+- **Branding media:** Admin upload for logo/favicon/banners → stored on API (`/storage/...`), absolute URLs in public config for Customer/Admin/Agent
+- **Registration email required** for Paystack deposits
+- **Live deposits:** no sandbox/mock top-up when Live; requires Paystack secret; credit only via signed webhook (or sandbox mock path when sandbox+test)
+- **Account page:** theme toggle removed (navbar toggle remains)
 
 ## How to operate
 | App | URL | Demo |
@@ -32,17 +40,16 @@ In progress — single-brand white-label sportsbook; sandbox/test money only unt
 - Admin → Booking codes (opens customer builder) / Competitions / Agents (enable booking codes)
 - Agent → Commissions → Booking codes (when flagged)
 - Customer → Betting codes / Load code → place real stake
-- Admin → Settings → sports provider includes `openligadb`
+- Admin → Settings → sports provider includes `openligadb` and `embedded_world` (toggle **Live sync obscure leagues** for TheSportsDB)
 
-## Tests (smoke) — 2026-11-15 deep review
-- Stack: Docker API + customer:3000 + admin:3001 + agent:3002 running
-- API: health/db/redis OK; admin/customer/agent login OK
-- Match scripts: timed goals → derived FT/HT (e.g. 2-1 / 1-1); score-only auto-goals OK
-- Booking codes: admin create + public load OK (`MPOJRVHJ`); agent flag enabled for demos
-- Wallet shows cash + bonus; promotions payload has mode + max_bonus_stake
-- Agent payouts admin endpoint OK (0 pending)
-- UI: admin fixture edit shows schedule → timed goals → Save & arm; customer lobby loads published fixtures
-- Risks: login throttle 429 under heavy testing; single-threaded `artisan serve`; unpublished fixtures invisible to customers; Docker Desktop can drop
+## Tests (smoke) — 2026-11-16 readiness
+- Stack: Docker API + customer:3000 + admin:3001 + agent:3002 → HTTP 200
+- API health: api/db/redis OK
+- Public config: `messaging.popup/toast` present; Live env does **not** set customer environment banner
+- Admin settings includes `customer_messaging`; PUT round-trip enables popup/toast then restored off
+- Fixtures catalogue: `GET /api/v1/fixtures` returned 7
+- Customer login + wallet OK (cash/bonus/reserved present)
+- Risks for live VPS test: login throttle 429 under heavy probing; single-threaded `artisan serve`; first Docker build needs RAM/swap; HTTPS/DNS still operator-owned
 - Feature tests `BookingCodeAuthzTest`, `PasswordPinResetTest` still need PHPUnit in image/CI
 
 ## Deploy

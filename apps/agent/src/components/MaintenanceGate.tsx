@@ -52,11 +52,6 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
           Sandbox · commissions are demo data
         </div>
       ) : null}
-      {ops?.show_environment_banner && ops.environment === "live" ? (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-amber-100">
-          Live environment
-        </div>
-      ) : null}
       {children}
     </>
   );

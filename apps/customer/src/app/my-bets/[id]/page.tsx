@@ -92,9 +92,9 @@ export default function BetDetailPage() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ng-win)_20%,transparent)]">
             <Trophy className="h-7 w-7 text-[var(--ng-win)]" />
           </div>
-          <h1 className="cx-title mt-3">You won</h1>
+          <h1 className="cx-title mt-3 text-[var(--ng-win)]">Won</h1>
           <p className="mt-1 text-sm text-[var(--ng-muted)]">
-            Brilliant slip — payout landed in your wallet.
+            Payout has been added to your wallet.
           </p>
           <p className="ng-tabular mt-4 text-3xl font-extrabold text-[var(--ng-win)]">
             {formatGhs(bet.potentialReturnMinor)}
@@ -115,18 +115,18 @@ export default function BetDetailPage() {
 
       {lost ? (
         <section className="slip-lost cx-card mt-4 p-5 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ng-surface-2)]">
-            <XCircle className="h-7 w-7 text-[var(--ng-muted)]" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ng-loss)_18%,transparent)]">
+            <XCircle className="h-7 w-7 text-[var(--ng-loss)]" />
           </div>
-          <h1 className="cx-title mt-3">Tough beat</h1>
+          <h1 className="cx-title mt-3 text-[var(--ng-loss)]">Lost</h1>
           <p className="mt-1 text-sm text-[var(--ng-muted)]">
-            This slip didn&apos;t land — the next one might. Fresh fixtures are waiting.
+            This slip did not win. Check today&apos;s matches for another go.
           </p>
-          <p className="mt-4 text-xs text-[var(--ng-muted)]">
+          <p className="mt-4 text-xs font-semibold text-[var(--ng-loss)]">
             Stake {formatGhs(bet.stakeMinor)} · @{bet.combinedOdds.toFixed(2)}
           </p>
           <Link href="/" className="cx-btn mt-5 inline-flex">
-            Try other matches
+            Back to matches
           </Link>
         </section>
       ) : null}
@@ -217,17 +217,40 @@ export default function BetDetailPage() {
           <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--ng-muted)]">
             Legs
           </p>
-          {bet.selections.map((s) => (
-            <div key={s.selectionId} className="border-t border-[var(--ng-border)] pt-2 text-sm">
-              <p className="font-semibold">
-                {s.label}{" "}
-                <span className="text-xs font-normal text-[var(--ng-muted)]">· {s.result}</span>
-              </p>
-              <p className="text-xs text-[var(--ng-muted)]">
-                {s.fixtureLabel ?? s.fixtureId} · {s.marketName} · {s.decimalOdds.toFixed(2)}
-              </p>
-            </div>
-          ))}
+          {bet.selections.map((s) => {
+            const legWon = s.result === "won";
+            const legLost = s.result === "lost";
+            return (
+              <div
+                key={s.selectionId}
+                className={[
+                  "border-t pt-2 text-sm",
+                  legLost
+                    ? "border-[color-mix(in_srgb,var(--ng-loss)_40%,var(--ng-border))]"
+                    : "border-[var(--ng-border)]",
+                ].join(" ")}
+              >
+                <p className="font-semibold">
+                  {s.label}{" "}
+                  <span
+                    className={[
+                      "text-xs font-bold uppercase",
+                      legWon
+                        ? "text-[var(--ng-win)]"
+                        : legLost
+                          ? "text-[var(--ng-loss)]"
+                          : "font-normal text-[var(--ng-muted)]",
+                    ].join(" ")}
+                  >
+                    · {legWon ? "Won" : legLost ? "Lost" : s.result}
+                  </span>
+                </p>
+                <p className="text-xs text-[var(--ng-muted)]">
+                  {s.fixtureLabel ?? s.fixtureId} · {s.marketName} · {s.decimalOdds.toFixed(2)}
+                </p>
+              </div>
+            );
+          })}
         </section>
       ) : null}
     </div>

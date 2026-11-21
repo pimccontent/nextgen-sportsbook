@@ -22,9 +22,8 @@ function resultFromScores(home: number, away: number): "home" | "draw" | "away" 
   return "draw";
 }
 
-function applyDurationPreset(
-  preset: DurationPreset,
-  current: {
+function applyDurationPreset<
+  T extends {
     clockMode: "sandbox" | "live";
     firstHalfSeconds: number;
     secondHalfSeconds: number;
@@ -32,8 +31,8 @@ function applyDurationPreset(
     etFirstSeconds: number;
     etSecondSeconds: number;
     etBreakSeconds: number;
-  }
-) {
+  },
+>(preset: DurationPreset, current: T): T {
   if (preset === "short") {
     return {
       ...current,
@@ -562,7 +561,7 @@ export default function FixtureDetailPage() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to fixtures
         </Link>
-        <p className="text-sm text-red-300">{error ?? "Fixture not found"}</p>
+        <p className="text-sm text-[var(--status-destructive-fg)]">{error ?? "Fixture not found"}</p>
       </div>
     );
   }
@@ -608,8 +607,8 @@ export default function FixtureDetailPage() {
         </div>
       </div>
 
-      {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
+      {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel)] px-3 py-2 text-xs text-[var(--text-tertiary)]">
         Simple path: set schedule → pick duration → add timed goals (e.g. Home 1H 23′) →{" "}
@@ -830,7 +829,7 @@ export default function FixtureDetailPage() {
                     )}
                     <button
                       type="button"
-                      className="text-xs font-semibold text-red-400"
+                      className="text-xs font-semibold text-[var(--status-destructive-fg)]"
                       onClick={() => setGoals((list) => list.filter((_, i) => i !== idx))}
                     >
                       Remove

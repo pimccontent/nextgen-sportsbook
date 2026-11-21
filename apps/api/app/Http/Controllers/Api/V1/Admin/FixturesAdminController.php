@@ -42,18 +42,112 @@ final class FixturesAdminController
     ) {
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $this->liveLifecycle->syncDueEvents();
 
-        $events = SportEvent::query()
-            ->with(['competition', 'homeTeam', 'awayTeam', 'markets.selections'])
-            ->orderByDesc('kickoff_at')
-            ->limit(300)
-            ->get()
-            ->map(fn (SportEvent $e) => $this->summary($e));
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'max:40'],
+            'publication_state' => ['nullable', 'string', 'max:40'],
+            'competition_id' => ['nullable', 'integer'],
+            'country' => ['nullable', 'string', 'max:120'],
+            'provider_source' => ['nullable', 'string', 'max:60'],
+            'include_cancelled' => ['nullable', 'boolean'],
+            'sort' => ['nullable', 'in:kickoff_at,competition,status,publication_state,home,created_at'],
+            'dir' => ['nullable', 'in:asc,desc'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+        ]);
 
-        return ApiResponse::success(['fixtures' => $events->values()]);
+        $sort = $data['sort'] ?? 'kickoff_at';
+        $dir = $data['dir'] ?? 'desc';
+        $perPage = (int) ($data['per_page'] ?? 25);
+
+        $query = SportEvent::query()
+            ->with(['competition', 'homeTeam', 'awayTeam', 'markets.selections']);
+
+        if (! ($data['include_cancelled'] ?? false)) {
+            $query->where('status', '!=', EventStatus::Cancelled);
+        }
+
+        if (! empty($data['status'])) {
+            $query->where('status', $data['status']);
+        }
+        if (! empty($data['publication_state'])) {
+            $query->where('publication_state', $data['publication_state']);
+        }
+        if (! empty($data['competition_id'])) {
+            $query->where('competition_id', (int) $data['competition_id']);
+        }
+        if (! empty($data['provider_source'])) {
+            $query->where('provider_source', $data['provider_source']);
+        }
+        if (! empty($data['country'])) {
+            $query->whereHas('competition', fn ($q) => $q->where('country', $data['country']));
+        }
+        if (! empty($data['q'])) {
+            $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $data['q']).'%';
+            $query->where(function ($q) use ($term) {
+                $q->where('home_name_override', 'ilike', $term)
+                    ->orWhere('away_name_override', 'ilike', $term)
+                    ->orWhere('public_id', 'ilike', $term)
+                    ->orWhereHas('homeTeam', fn ($t) => $t->where('name', 'ilike', $term))
+                    ->orWhereHas('awayTeam', fn ($t) => $t->where('name', 'ilike', $term))
+                    ->orWhereHas('competition', fn ($c) => $c->where('name', 'ilike', $term));
+            });
+        }
+
+        $dirSql = $dir === 'asc' ? 'asc' : 'desc';
+        // Model table is `events` (not sport_events).
+        if ($sort === 'home') {
+            $query
+                ->leftJoin('teams as home_teams_sort', 'events.home_team_id', '=', 'home_teams_sort.id')
+                ->orderByRaw('LOWER(COALESCE(events.home_name_override, home_teams_sort.name)) '.$dirSql)
+                ->select('events.*');
+        } elseif ($sort === 'competition') {
+            $query
+                ->leftJoin('competitions as competitions_sort', 'events.competition_id', '=', 'competitions_sort.id')
+                ->orderByRaw('LOWER(competitions_sort.name) '.$dirSql)
+                ->select('events.*');
+        } else {
+            $query->orderBy(match ($sort) {
+                'status' => 'status',
+                'publication_state' => 'publication_state',
+                'created_at' => 'created_at',
+                default => 'kickoff_at',
+            }, $dirSql);
+        }
+
+        $paginator = $query->paginate($perPage);
+
+        $competitions = Competition::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'country'])
+            ->map(fn (Competition $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'country' => $c->country,
+            ])
+            ->values();
+
+        $countries = $competitions->pluck('country')->filter()->unique()->sort()->values();
+
+        return ApiResponse::success([
+            'fixtures' => $paginator->getCollection()->map(fn (SportEvent $e) => $this->summary($e))->values(),
+            'meta' => [
+                'page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+            'filters' => [
+                'competitions' => $competitions,
+                'countries' => $countries,
+                'statuses' => ['upcoming', 'live', 'finished', 'postponed', 'cancelled', 'abandoned'],
+                'publication_states' => ['draft', 'published', 'suspended'],
+            ],
+        ]);
     }
 
     public function show(string $id): JsonResponse
@@ -68,6 +162,8 @@ final class FixturesAdminController
 
     public function sync(Request $request): JsonResponse
     {
+        set_time_limit(180);
+
         try {
             $result = $this->ingestion->sync(Tenant::default());
         } catch (RuntimeException $e) {
@@ -77,6 +173,62 @@ final class FixturesAdminController
         $this->audit->log($request->user(), 'fixtures.sync', $request, $result);
 
         return ApiResponse::success($result, 'Fixtures synced from live provider');
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'string', 'max:80'],
+        ]);
+
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($data['ids'] as $publicId) {
+            $event = $this->find($publicId);
+            if (! $event) {
+                $skipped[] = ['id' => $publicId, 'reason' => 'not_found'];
+                continue;
+            }
+
+            $openBets = \App\Models\Bet::query()
+                ->where('status', 'open')
+                ->whereHas('selections', fn ($q) => $q->where('event_id', $event->id))
+                ->count();
+
+            if ($openBets > 0) {
+                $skipped[] = ['id' => $publicId, 'reason' => "open_bets:{$openBets}"];
+                continue;
+            }
+
+            $event->status = EventStatus::Cancelled;
+            $event->publication_state = PublicationState::Suspended;
+            $event->admin_locked = true;
+            $event->clock_started_at = null;
+            $event->save();
+
+            foreach ($event->markets as $market) {
+                $market->status = 'suspended';
+                $market->save();
+                foreach ($market->selections as $selection) {
+                    $selection->state = 'suspended';
+                    $selection->save();
+                }
+            }
+
+            $deleted++;
+        }
+
+        $this->audit->log($request->user(), 'fixtures.bulk_delete', $request, [
+            'deleted' => $deleted,
+            'skipped' => count($skipped),
+        ]);
+
+        return ApiResponse::success([
+            'deleted' => $deleted,
+            'skipped' => $skipped,
+        ], "Removed {$deleted} fixture(s)");
     }
 
     public function store(Request $request): JsonResponse
@@ -684,6 +836,7 @@ final class FixturesAdminController
             'id' => $e->public_id,
             'competition' => $e->competition?->name,
             'competitionId' => $e->competition_id,
+            'country' => $e->competition?->country,
             'home' => $e->displayHomeName(),
             'away' => $e->displayAwayName(),
             'kickoffIso' => $e->kickoff_at?->utc()->toIso8601String(),

@@ -43,8 +43,9 @@ if ! grep -q '^APP_KEY=base64:' .env; then
   php artisan key:generate --force --ansi
 fi
 
-mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache storage/app/public
 chmod -R ug+rwx storage bootstrap/cache || true
+php artisan storage:link --force >/dev/null 2>&1 || true
 
 php artisan migrate --force --no-interaction || true
 

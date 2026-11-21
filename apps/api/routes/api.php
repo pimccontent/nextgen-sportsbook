@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Admin\AgentPayoutsAdminController;
 use App\Http\Controllers\Api\V1\Admin\AgentsAdminController;
 use App\Http\Controllers\Api\V1\Admin\BannersAdminController;
+use App\Http\Controllers\Api\V1\Admin\MediaAdminController;
 use App\Http\Controllers\Api\V1\Admin\BookingCodesAdminController;
 use App\Http\Controllers\Api\V1\Admin\CompetitionsAdminController;
 use App\Http\Controllers\Api\V1\Admin\DepositsAdminController;
@@ -35,10 +36,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/webhooks/paystack', PaystackWebhookController::class)->middleware('throttle:120,1');
 
     Route::prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
-        Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:20,1');
-        Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:10,1');
-        Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:10,1');
+        // Generous per-IP ceilings so shared NAT / Docker gateway IPs do not lock real users out.
+        // Brute-force protection remains in AuthController (failed-attempt RateLimiter).
+        Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:60,1');
+        Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:60,1');
+        Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:30,1');
+        Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:30,1');
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
             Route::post('/logout', [AuthController::class, 'logout']);
@@ -82,7 +85,8 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
         Route::get('/fixtures', [FixturesAdminController::class, 'index']);
-        Route::post('/fixtures/sync', [FixturesAdminController::class, 'sync'])->middleware('throttle:10,1');
+        Route::post('/fixtures/sync', [FixturesAdminController::class, 'sync'])->middleware('throttle:6,1');
+        Route::post('/fixtures/bulk-delete', [FixturesAdminController::class, 'bulkDestroy'])->middleware('throttle:20,1');
         Route::post('/fixtures', [FixturesAdminController::class, 'store'])->middleware('throttle:30,1');
         Route::get('/fixtures/{id}', [FixturesAdminController::class, 'show']);
         Route::put('/fixtures/{id}', [FixturesAdminController::class, 'update']);
@@ -108,6 +112,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/settings/payments/secrets', [SettingsAdminController::class, 'updateSecrets'])->middleware('throttle:20,1');
         Route::get('/settings/{group}', [SettingsAdminController::class, 'show']);
         Route::put('/settings/{group}', [SettingsAdminController::class, 'update'])->middleware('throttle:60,1');
+        Route::post('/media', [MediaAdminController::class, 'store'])->middleware('throttle:30,1');
 
         Route::get('/settlement/bets', [SettlementAdminController::class, 'openBets']);
         Route::post('/settlement/bets/{publicId}', [SettlementAdminController::class, 'settle'])->middleware('throttle:60,1');

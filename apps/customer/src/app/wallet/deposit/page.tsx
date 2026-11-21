@@ -20,8 +20,9 @@ export default function DepositPage() {
 
   const min = config?.wallet.min_deposit_minor ?? 500;
   const max = config?.wallet.max_deposit_minor ?? 1000000;
-  const mode = config?.payments.mode ?? "test";
-  const modeLabel = mode === "live" ? "Live payments" : "Test payments";
+  const depositsEnabled = config?.payments?.deposits_enabled !== false;
+  const mockDeposits = Boolean(config?.payments?.mock_deposits);
+  const isLiveOps = (config?.operations?.environment ?? config?.meta?.environment) === "live";
 
   React.useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -30,6 +31,12 @@ export default function DepositPage() {
   const onDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (!depositsEnabled) {
+      setError(
+        "Deposits are not available right now. Please contact support or try again later."
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -40,14 +47,22 @@ export default function DepositPage() {
         idempotency_key: `dep-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });
 
-      if (intent.payment.authorizationUrl && !intent.payment.mock) {
-        window.location.href = intent.payment.authorizationUrl;
+      const payment = intent.payment;
+      if (payment.authorizationUrl && !payment.mock) {
+        window.location.href = payment.authorizationUrl;
         return;
       }
 
-      await api.completeMockDeposit(token, intent.payment.reference);
-      setMessage("Deposit completed");
-      setTimeout(() => router.push("/wallet"), 900);
+      if (payment.mock && mockDeposits) {
+        await api.completeMockDeposit(token, payment.reference);
+        setMessage("Deposit completed");
+        setTimeout(() => router.push("/wallet"), 900);
+        return;
+      }
+
+      setError(
+        "Unable to start a secure payment session. Please try again later or contact support."
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Deposit failed");
     } finally {
@@ -69,43 +84,62 @@ export default function DepositPage() {
         Wallet
       </Link>
       <h1 className="cx-title mt-3">Deposit</h1>
-      <p className="mt-1 text-xs text-[var(--ng-muted)]">{modeLabel}</p>
-
-      {config?.promotions?.deposit_bonus_enabled ? (
-        <div className="cx-card mt-3 border-[color-mix(in_srgb,var(--ng-accent)_40%,var(--ng-border))] p-3">
-          <p className="text-sm font-bold text-[var(--ng-accent)]">
-            {config.promotions.deposit_bonus_title ?? "Top-up bonus"}
-          </p>
-          <p className="mt-1 text-xs text-[var(--ng-muted)]">
-            {config.promotions.deposit_bonus_blurb ||
-              `${((config.promotions.deposit_bonus_percent_bps ?? 0) / 100).toFixed(0)}% bonus on deposit`}
-            {config.promotions.deposit_bonus_first_only
-              ? " · First completed deposit"
-              : ""}
-          </p>
-        </div>
+      {!isLiveOps && mockDeposits ? (
+        <p className="mt-1 text-xs text-[var(--ng-muted)]">Sandbox deposit for testing</p>
       ) : null}
 
-      <form onSubmit={onDeposit} className="cx-card mt-4 space-y-4 p-4">
-        <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
-          Amount (GHS)
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            inputMode="decimal"
-            required
-            className="cx-input mt-1.5"
-          />
-        </label>
-        <p className="text-[11px] text-[var(--ng-muted)]">
-          {formatGhs(min)} – {formatGhs(max)}
-        </p>
-        {error ? <p className="text-sm text-[var(--ng-danger)]">{error}</p> : null}
-        {message ? <p className="text-sm text-[var(--ng-win)]">{message}</p> : null}
-        <button type="submit" disabled={busy} className="cx-btn w-full">
-          {busy ? "Processing…" : "Continue to payment"}
-        </button>
-      </form>
+      {!depositsEnabled ? (
+        <div className="cx-card mt-4 border-[color-mix(in_srgb,var(--ng-accent)_35%,var(--ng-border))] p-4">
+          <p className="text-sm font-semibold text-[var(--ng-text)]">
+            Deposits unavailable
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--ng-muted)]">
+            Card top-ups are not set up yet. Please contact support, or try again once payments
+            are enabled by the operator.
+          </p>
+          <Link href="/wallet" className="cx-btn mt-4 inline-flex">
+            Back to wallet
+          </Link>
+        </div>
+      ) : (
+        <>
+          {config?.promotions?.deposit_bonus_enabled ? (
+            <div className="cx-card mt-3 border-[color-mix(in_srgb,var(--ng-accent)_40%,var(--ng-border))] p-3">
+              <p className="text-sm font-bold text-[var(--ng-accent)]">
+                {config.promotions.deposit_bonus_title ?? "Top-up bonus"}
+              </p>
+              <p className="mt-1 text-xs text-[var(--ng-muted)]">
+                {config.promotions.deposit_bonus_blurb ||
+                  `${((config.promotions.deposit_bonus_percent_bps ?? 0) / 100).toFixed(0)}% bonus on deposit`}
+                {config.promotions.deposit_bonus_first_only
+                  ? " · First completed deposit"
+                  : ""}
+              </p>
+            </div>
+          ) : null}
+
+          <form onSubmit={onDeposit} className="cx-card mt-4 space-y-4 p-4">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
+              Amount (GHS)
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+                required
+                className="cx-input mt-1.5"
+              />
+            </label>
+            <p className="text-[11px] text-[var(--ng-muted)]">
+              {formatGhs(min)} – {formatGhs(max)}
+            </p>
+            {error ? <p className="text-sm text-[var(--ng-danger)]">{error}</p> : null}
+            {message ? <p className="text-sm text-[var(--ng-win)]">{message}</p> : null}
+            <button type="submit" disabled={busy} className="cx-btn w-full">
+              {busy ? "Processing…" : "Continue to payment"}
+            </button>
+          </form>
+        </>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             IdentitySeeder::class,
             SportsCatalogueSeeder::class,
             WalletDemoSeeder::class,
+            BannerSeeder::class,
         ]);
     }
 }

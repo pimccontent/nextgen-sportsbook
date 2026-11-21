@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -27,7 +28,9 @@ export function BetSlipPanel({
     removeSelection,
     clear,
     estimatedOdds,
+    requestOpenSlip,
   } = useSlip();
+  const router = useRouter();
   const { token, user } = useAuth();
   const { config } = useBrand();
   const { session: operator } = useOperatorBuilder();
@@ -57,6 +60,7 @@ export function BetSlipPanel({
       if (!legs.length) throw new Error("Code has no legs");
       loadBookingLegs(legs);
       setBookingCode(value);
+      requestOpenSlip();
       setStatus(`Loaded ${value}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load code");
@@ -72,7 +76,9 @@ export function BetSlipPanel({
     setError(null);
     setStatus(null);
     if (!token || !user) {
-      setError("Log in to place a bet.");
+      requestOpenSlip();
+      const next = encodeURIComponent("/?openSlip=1");
+      router.push(`/login?next=${next}`);
       return;
     }
     const stakeNum = Number(stake);

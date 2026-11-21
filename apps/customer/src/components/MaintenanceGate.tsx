@@ -9,8 +9,9 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--ng-bg)] text-sm text-[var(--ng-muted)]">
-        Loading…
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#0a0a0a] px-4 text-center">
+        <div className="h-8 w-8 animate-pulse rounded-full bg-[#F5A524]/40" />
+        <p className="text-sm font-medium text-[#f5f5f5]">Loading sportsbook…</p>
       </div>
     );
   }
@@ -48,16 +49,13 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Never show a "Live environment" strip on the customer app (professional UX).
+  // Sandbox banner remains optional and admin-controlled.
   return (
     <>
       {ops?.show_environment_banner && ops.environment === "sandbox" ? (
         <div className="border-b border-[var(--ng-border)] bg-[color-mix(in_srgb,var(--ng-accent)_12%,transparent)] px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--ng-text)]">
           Sandbox mode — not real money
-        </div>
-      ) : null}
-      {ops?.show_environment_banner && ops.environment === "live" ? (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-amber-100">
-          Live environment
         </div>
       ) : null}
       {children}

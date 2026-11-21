@@ -38,15 +38,21 @@ final class TenantSettingsDefaults
             ],
             'sports_data' => [
                 // thesportsdb works with free demo key for testing; football_data_org needs a free token.
-                'provider' => 'thesportsdb', // mock | football_data_org | thesportsdb | openligadb
+                // embedded_world = curated obscure leagues (offline generate; optional TheSportsDB live).
+                'provider' => 'thesportsdb', // mock | football_data_org | thesportsdb | openligadb | embedded_world
                 'openligadb_league' => 'bl1',
                 'sync_top_leagues' => true,
                 'sync_other_leagues' => true,
+                // Always pull curated lesser-known leagues (in addition to the selected provider).
+                'sync_obscure_leagues' => true,
+                // Prefer live TheSportsDB kickoffs for obscure leagues; catalogue fills gaps.
+                'obscure_live_sync' => true,
                 'competition_codes' => 'PL,PD,BL1,SA,FL1,CL,ELC',
                 'default_home_odds' => 2.1,
                 'default_draw_odds' => 3.2,
                 'default_away_odds' => 3.4,
-                'auto_publish' => false,
+                // Customer lobby only shows published fixtures — sync should publish by default.
+                'auto_publish' => true,
             ],
             'betting' => [
                 'min_stake_minor' => 100,
@@ -103,19 +109,19 @@ final class TenantSettingsDefaults
                 'jurisdiction' => 'GH',
                 'licence_label' => 'Operator disclosures are configured by admin',
                 'rg_footer_enabled' => true,
-                'rg_message' => '18+ only. Play responsibly. Betting can be addictive. You are solely responsible for your betting decisions.',
+                'rg_message' => '18+ only. Play responsibly. Betting can be addictive. Only stake what you can afford to lose.',
                 'self_exclusion_enabled' => false,
                 'show_payment_mode_label' => true,
             ],
             'legal' => [
-                'terms_title' => 'Terms of Service',
-                'terms_body' => "IMPORTANT: These Terms are an operator-editable draft reflecting how this platform is built. They are not licensed legal advice. By creating an account or placing a bet you accept full personal responsibility for your actions.\n\n1. Eligibility\nYou must be at least 18 years old and legally able to use online betting services in your location. You confirm that all registration details are accurate.\n\n2. Account security\nYou must keep your password and 6-digit security PIN confidential. Password resets use your phone number plus security PIN (no email/SMS delivery). You are responsible for activity under your account.\n\n3. Wallet, cash, and bonus\nBalances are stored in Ghana Cedis (GHS). Cash (available) may be withdrawn subject to limits, fees, KYC, and payout details. Bonus balance is separate, awarded as a percentage or fixed GHS amount per admin settings, may fund stakes only up to the admin max bonus stake, and cannot be withdrawn. Bet winnings are credited to cash.\n\n4. Betting\nBets are accepted only after server-side validation of markets, odds, stake limits, and funds. Accepted odds and market state are stored with the bet. Odds-change policy is enforced by the platform. Duplicate submissions are rejected via idempotency keys. You acknowledge that sports results, settlement, and voiding are determined by the operator systems and admin settlement tools.\n\n5. Booking codes\nListed booking codes are selection templates only. Loading a code does not place a bet. You must confirm stake and place the bet yourself. Admin/agent generators do not create liability until a customer places a paid bet.\n\n6. Agents and referrals\nReferral attribution may earn agent commissions on eligible bets/deposits under admin settings. Agents may generate booking codes only when enabled by admin.\n\n7. Fixtures and scripts\nFixture schedules, live clocks, and scripted outcomes may be controlled by the operator. Displayed minutes and scores are informational for betting markets as configured.\n\n8. Prohibited use\nFraud, multi-accounting, abuse of promotions, payment chargebacks in bad faith, or attempts to attack the platform are prohibited and may lead to suspension and forfeiture where permitted.\n\n9. Liability\nTo the maximum extent permitted by law, you use the platform at your own risk. The operator is not liable for losses arising from your betting decisions, device/network failures, or third-party outages beyond reasonable control.\n\n10. Changes\nThe operator may update these Terms via admin settings. Continued use after publication constitutes acceptance.",
-                'privacy_title' => 'Privacy Policy',
-                'privacy_body' => "This Privacy Policy describes how account and transaction data are processed on this sportsbook platform (Ghana Cedis / GHS).\n\n1. Data we process\n- Identity: name, phone, email (including synthetic email for phone accounts), security PIN hash, password hash.\n- Profile: display preferences, KYC status fields, payout details you submit.\n- Financial: wallet cash/bonus/reserved balances, deposits, withdrawals, ledger journals, bets and settlements.\n- Technical: auth tokens, audit logs of sensitive actions, IP-based rate limits.\n\n2. Purpose\nData is used to authenticate you, operate wallets and bets, prevent abuse, attribute agent referrals, and meet operator compliance controls.\n\n3. Sharing\nPayment and sports-data providers may receive necessary references when integrations are enabled. We do not sell personal data.\n\n4. Retention\nFinancial and audit records are retained for reconciliation and dispute handling. You may request corrections of profile data through support channels configured by the operator.\n\n5. Security\nPasswords and security PINs are stored hashed. Secrets and payment credentials must not be placed in public frontends.\n\n6. Your responsibility\nProtect your device and credentials. Report unauthorized access immediately.",
-                'responsible_gambling_title' => 'Responsible Gambling',
-                'responsible_gambling_body' => "18+ only.\n\nBetting involves risk of losing money. Only stake amounts you can afford to lose. Bonus funds are for betting only and are not withdrawable cash.\n\nPractical tips:\n- Set personal time and spend limits.\n- Do not chase losses.\n- Take breaks if betting stops being entertainment.\n- Seek local help resources if gambling becomes harmful.\n\nYou remain fully responsible for every bet you place, including bets loaded from booking codes.",
-                'about_title' => 'About',
-                'about_body' => "This is a mobile-first sportsbook product for Ghana Cedis (GHS) with Customer, Agent, and Admin portals on one Laravel API. Features include wallet cash/bonus separation, referral agents, booking codes, admin-managed competitions/fixtures, and optional scripted match control.\n\nOperator branding, legal text, promotions, and compliance labels are controlled from Admin Settings. Real-money licensing, payment go-live, and regulatory approvals remain the operator's independent obligation before any live operation.",
+                'terms_title' => LegalContent::termsTitle(),
+                'terms_body' => LegalContent::termsBody(),
+                'privacy_title' => LegalContent::privacyTitle(),
+                'privacy_body' => LegalContent::privacyBody(),
+                'responsible_gambling_title' => LegalContent::responsibleGamblingTitle(),
+                'responsible_gambling_body' => LegalContent::responsibleGamblingBody(),
+                'about_title' => LegalContent::aboutTitle(),
+                'about_body' => LegalContent::aboutBody(),
             ],
             'operations' => [
                 // sandbox = demo/test money UX; live = operator production label (does not alone enable provider money rails)
@@ -124,7 +130,21 @@ final class TenantSettingsDefaults
                 'maintenance_title' => "We'll be right back",
                 'maintenance_message' => 'The sportsbook is undergoing scheduled maintenance. Please try again shortly.',
                 'maintenance_eta' => null,
-                'show_environment_banner' => true,
+                // When true, Customer/Agent may show a sandbox-only strip. Live never shows a customer banner.
+                'show_environment_banner' => false,
+            ],
+            'customer_messaging' => [
+                'popup_enabled' => false,
+                'popup_id' => 'welcome',
+                'popup_title' => 'Welcome',
+                'popup_body' => 'Place responsibly. 18+ only.',
+                'popup_cta_label' => 'Got it',
+                'popup_cta_url' => null,
+                'popup_dismissible' => true,
+                'toast_enabled' => true,
+                'toast_id' => 'lobby-welcome',
+                'toast_message' => 'Explore fixtures worldwide — including lesser-known leagues.',
+                'toast_tone' => 'info', // info | success | warning
             ],
             'promotions' => [
                 'deposit_bonus_enabled' => true,

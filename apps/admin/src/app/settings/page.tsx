@@ -3,10 +3,12 @@
 import * as React from "react";
 import { api, type SettingsGroup } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 const TABS = [
   { id: "operations", label: "Operations" },
   { id: "branding", label: "Branding" },
+  { id: "customer_messaging", label: "Customer messages" },
   { id: "locale", label: "Locale" },
   { id: "betting", label: "Betting" },
   { id: "wallet", label: "Wallet" },
@@ -177,15 +179,15 @@ export default function SettingsPage() {
                   }}
                 />
                 <Toggle
-                  label="Show environment banner on Customer/Agent"
-                  checked={draft.show_environment_banner !== false}
+                  label="Show sandbox banner on Customer/Agent (never shown in Live)"
+                  checked={Boolean(draft.show_environment_banner)}
                   onChange={(v) => setField("show_environment_banner", v)}
                 />
               </div>
 
               {String(draft.environment ?? "sandbox") === "live" ? (
-                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-amber-200">
+                <div className="rounded-lg border border-[color-mix(in_srgb,var(--status-warning-fg)_40%,transparent)] bg-[color-mix(in_srgb,var(--status-warning-fg)_12%,transparent)] p-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--status-warning-fg)]">
                     Confirm live / production label
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)]">
@@ -231,6 +233,93 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {tab === "customer_messaging" && (
+            <div className="space-y-5">
+              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                <p className="font-semibold text-[var(--text-primary)]">
+                  Customer popups &amp; notifications
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                  Control the modal and toast shown on the customer app. Hero slides stay under{" "}
+                  <strong className="text-[var(--text-primary)]">Banners</strong>. Change the
+                  popup/toast ID after editing copy so returning visitors see the new message.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Toggle
+                  label="Show popup modal"
+                  checked={Boolean(draft.popup_enabled)}
+                  onChange={(v) => setField("popup_enabled", v)}
+                />
+                <Field
+                  label="Popup ID (version key)"
+                  value={String(draft.popup_id ?? "welcome")}
+                  onChange={(v) => setField("popup_id", v)}
+                />
+                <Field
+                  label="Popup title"
+                  value={String(draft.popup_title ?? "")}
+                  onChange={(v) => setField("popup_title", v)}
+                />
+                <Field
+                  label="CTA label"
+                  value={String(draft.popup_cta_label ?? "Got it")}
+                  onChange={(v) => setField("popup_cta_label", v)}
+                />
+                <Field
+                  label="CTA URL (optional)"
+                  value={String(draft.popup_cta_url ?? "")}
+                  onChange={(v) => setField("popup_cta_url", v || null)}
+                />
+                <Toggle
+                  label="Popup dismissible"
+                  checked={draft.popup_dismissible !== false}
+                  onChange={(v) => setField("popup_dismissible", v)}
+                />
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Popup body
+                    <textarea
+                      value={String(draft.popup_body ?? "")}
+                      onChange={(e) => setField("popup_body", e.target.value)}
+                      rows={4}
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="border-t border-[var(--border-soft)] pt-4 grid gap-3 sm:grid-cols-2">
+                <Toggle
+                  label="Show toast notification"
+                  checked={Boolean(draft.toast_enabled)}
+                  onChange={(v) => setField("toast_enabled", v)}
+                />
+                <Field
+                  label="Toast ID (version key)"
+                  value={String(draft.toast_id ?? "notice")}
+                  onChange={(v) => setField("toast_id", v)}
+                />
+                <Select
+                  label="Toast tone"
+                  value={String(draft.toast_tone ?? "info")}
+                  options={["info", "success", "warning"]}
+                  onChange={(v) => setField("toast_tone", v)}
+                />
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Toast message
+                    <textarea
+                      value={String(draft.toast_message ?? "")}
+                      onChange={(e) => setField("toast_message", e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {tab === "branding" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
@@ -243,15 +332,19 @@ export default function SettingsPage() {
                 value={String(draft.legal_name ?? "")}
                 onChange={(v) => setField("legal_name", v)}
               />
-              <Field
-                label="Logo URL"
+              <ImageUploadField
+                label="Site logo"
+                kind="logo"
                 value={String(draft.logo_url ?? "")}
                 onChange={(v) => setField("logo_url", v || null)}
+                hint="Shown on Customer, Admin, and Agent headers. Save Branding after upload."
               />
-              <Field
-                label="Favicon URL"
+              <ImageUploadField
+                label="Favicon"
+                kind="favicon"
                 value={String(draft.favicon_url ?? "")}
                 onChange={(v) => setField("favicon_url", v || null)}
+                hint="Browser tab icon for customer and agent apps."
               />
               <Field
                 label="Support email"
@@ -303,7 +396,7 @@ export default function SettingsPage() {
                 value={String(draft.currency_name ?? "Ghana Cedis")}
                 onChange={(v) => setField("currency_name", v)}
               />
-              <p className="sm:col-span-2 text-[11px] text-graphite-100">
+              <p className="sm:col-span-2 text-[11px] text-[var(--text-tertiary)]">
                 All money amounts below are entered and shown in <strong>Ghana Cedis (GHS)</strong>.
                 The ledger still stores integer pesewas (1 GHS = 100) internally.
               </p>
@@ -676,11 +769,11 @@ export default function SettingsPage() {
                   onChange={(v) => setField("webhook_url", v)}
                 />
               </div>
-              <div className="rounded-lg border border-dashed border-graphite-200 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-graphite-100">
+              <div className="rounded-lg border border-dashed border-[var(--border-soft)] p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
                   Secrets (write-only)
                 </p>
-                <p className="mt-1 text-[11px] text-graphite-100">
+                <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
                   Secret key:{" "}
                   {secrets.paystack_secret_key?.configured
                     ? `configured (…${secrets.paystack_secret_key.hint})`
@@ -717,7 +810,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => void saveSecrets()}
                   disabled={saving}
-                  className="mt-3 rounded-lg border border-graphite-200 px-3 py-2 text-xs font-bold text-white hover:bg-graphite-200 disabled:opacity-60"
+                  className="mt-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)] disabled:opacity-60"
                 >
                   Save secrets only
                 </button>
@@ -731,7 +824,13 @@ export default function SettingsPage() {
                 <Select
                   label="Provider"
                   value={String(draft.provider ?? "mock")}
-                  options={["mock", "football_data_org", "thesportsdb", "openligadb"]}
+                  options={[
+                    "mock",
+                    "football_data_org",
+                    "thesportsdb",
+                    "openligadb",
+                    "embedded_world",
+                  ]}
                   onChange={(v) => setField("provider", v)}
                 />
                 <Field
@@ -760,9 +859,19 @@ export default function SettingsPage() {
                   onChange={(v) => setField("sync_top_leagues", v)}
                 />
                 <Toggle
-                  label="Sync other / lesser-known leagues"
+                  label="Sync other / mid-tier leagues (provider list)"
                   checked={Boolean(draft.sync_other_leagues)}
                   onChange={(v) => setField("sync_other_leagues", v)}
+                />
+                <Toggle
+                  label="Always sync obscure worldwide leagues"
+                  checked={draft.sync_obscure_leagues !== false}
+                  onChange={(v) => setField("sync_obscure_leagues", v)}
+                />
+                <Toggle
+                  label="Live sync obscure leagues (TheSportsDB)"
+                  checked={Boolean(draft.obscure_live_sync)}
+                  onChange={(v) => setField("obscure_live_sync", v)}
                 />
                 <Toggle
                   label="Auto-publish imported fixtures"
@@ -770,17 +879,24 @@ export default function SettingsPage() {
                   onChange={(v) => setField("auto_publish", v)}
                 />
               </div>
-              <p className="text-[11px] text-graphite-100">
-                Free options: <strong>football-data.org</strong> (API token required —
-                free tier), <strong>thesportsdb</strong> (public demo key), or{" "}
-                <strong>mock</strong> catalogue. Admin always controls odds, publication,
-                and results after import.
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                Free fixtures (no paid plan required): <strong>embedded_world</strong> (curated
+                obscure leagues offline; optional TheSportsDB live sync),{" "}
+                <strong>openligadb</strong> (no API key),{" "}
+                <strong>thesportsdb</strong> (free demo key <code className="font-mono">123</code> —
+                strict rate limits; sync spaces requests and retries 429s),{" "}
+                <strong>football-data.org</strong> (free token you register yourself), or{" "}
+                <strong>mock</strong> built-in catalogue. If TheSportsDB returns HTTP 429, wait a
+                minute and retry, or use <strong>embedded_world</strong> / <strong>mock</strong>.
+                Live sync for <strong>embedded_world</strong> falls back to the catalogue per league
+                if empty or rate-limited. Nothing in this stack secretly bills a paid sports API.
+                Admin still controls odds, publication, and results after import.
               </p>
-              <div className="rounded-lg border border-dashed border-graphite-200 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-graphite-100">
+              <div className="rounded-lg border border-dashed border-[var(--border-soft)] p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
                   Sports API key (write-only)
                 </p>
-                <p className="mt-1 text-[11px] text-graphite-100">
+                <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
                   {secrets.sports_api_key?.configured
                     ? `configured (…${secrets.sports_api_key.hint})`
                     : "not set"}
@@ -798,7 +914,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => void saveSecrets()}
                   disabled={saving}
-                  className="mt-3 rounded-lg border border-graphite-200 px-3 py-2 text-xs font-bold text-white hover:bg-graphite-200 disabled:opacity-60"
+                  className="mt-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)] disabled:opacity-60"
                 >
                   Save sports API key
                 </button>
@@ -879,15 +995,15 @@ export default function SettingsPage() {
               type="button"
               onClick={() => void save()}
               disabled={saving || liveSaveBlocked}
-              className="rounded-lg bg-indigo px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-sm font-bold text-[var(--action-primary-fg)] disabled:opacity-60"
             >
               {saving ? "Saving…" : `Save ${tab}`}
             </button>
             {status ? (
-              <p className="text-xs font-semibold text-emerald-300">{status}</p>
+              <p className="text-xs font-semibold text-[var(--status-healthy-fg)]">{status}</p>
             ) : null}
             {error ? (
-              <p className="text-xs font-semibold text-red-300">{error}</p>
+              <p className="text-xs font-semibold text-[var(--status-destructive-fg)]">{error}</p>
             ) : null}
           </div>
         </div>

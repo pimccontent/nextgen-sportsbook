@@ -32,7 +32,7 @@ export default function CompetitionsAdminPage() {
     <div className="space-y-4">
       <PageHeader title="Competitions" />
       <p className="text-sm text-[var(--text-tertiary)]">Manage fixture categories/leagues.</p>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <section className="admin-card space-y-3 p-4">
         <h2 className="text-sm font-semibold">Add competition</h2>

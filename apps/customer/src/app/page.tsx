@@ -16,7 +16,8 @@ type LobbyMode = "upcoming" | "live" | "played";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { selectedIds, toggleSelection, loadBookingLegs, setBookingCode } = useSlip();
+  const { selectedIds, toggleSelection, loadBookingLegs, setBookingCode, requestOpenSlip } =
+    useSlip();
   const [mode, setMode] = React.useState<LobbyMode>("upcoming");
   const [competitionId, setCompetitionId] = React.useState<string>("all");
   const [competitions, setCompetitions] =
@@ -56,12 +57,17 @@ export default function LobbyPage() {
 
   React.useEffect(() => {
     void load(false);
+    // After soft catalogue refresh (API afterResponse), pull again so new fixtures appear.
+    const followUp = window.setTimeout(() => void load(true), 2500);
     const tick = () => {
       if (document.visibilityState === "hidden") return;
       void load(true);
     };
-    const id = window.setInterval(tick, 15000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(tick, 12000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(followUp);
+    };
   }, [load]);
 
   React.useEffect(() => {
@@ -226,6 +232,7 @@ export default function LobbyPage() {
                           loadBookingLegs(d.bookingCode.legs);
                           setBookingCode(c.code);
                           setCodesOpen(false);
+                          requestOpenSlip();
                         });
                       }}
                     >

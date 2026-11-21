@@ -33,6 +33,9 @@ final class PaymentService
             throw new InvalidArgumentException("Deposit must be between GHS {$minGhs} and GHS {$maxGhs}.");
         }
 
+        $allowMock = $this->sandboxMockAllowed($tenant);
+        $email = $this->depositEmail($user, $allowMock);
+
         $existing = PaymentIntent::query()
             ->where('tenant_id', $tenant->id)
             ->where('idempotency_key', $idempotencyKey)
@@ -41,7 +44,7 @@ final class PaymentService
             return $existing;
         }
 
-        return DB::transaction(function () use ($user, $amountMinor, $idempotencyKey, $tenant) {
+        return DB::transaction(function () use ($user, $amountMinor, $idempotencyKey, $tenant, $email, $allowMock) {
             $wallet = $this->wallets->forUser($user);
             $intent = PaymentIntent::query()->create([
                 'tenant_id' => $tenant->id,
@@ -56,8 +59,15 @@ final class PaymentService
                 'provider_reference' => 'NG_'.Str::upper(Str::random(16)),
             ]);
 
-            $email = $user->email ?: 'customer'.$user->id.'@nextgen.local';
-            $init = $this->paystack->initializeDeposit($tenant, $intent, $email);
+            try {
+                $init = $this->paystack->initializeDeposit($tenant, $intent, $email, $allowMock);
+            } catch (RuntimeException $e) {
+                $intent->status = 'failed';
+                $intent->provider_payload = ['error' => $e->getMessage()];
+                $intent->save();
+                throw new InvalidArgumentException($e->getMessage());
+            }
+
             $intent->authorization_url = $init['authorization_url'];
             $intent->provider_reference = $init['reference'];
             $intent->provider_payload = $init;
@@ -67,11 +77,36 @@ final class PaymentService
         });
     }
 
+    /**
+     * Sandbox-only client completion for mock intents. Never credits live/provider intents.
+     */
     public function completeMockDeposit(string $reference, ?User $owner = null): PaymentIntent
     {
         $tenant = Tenant::default();
+        if (! $this->sandboxMockAllowed($tenant)) {
+            throw new RuntimeException('Manual deposit completion is not available.');
+        }
 
-        return DB::transaction(function () use ($reference, $tenant, $owner) {
+        return $this->finalizeDeposit($reference, $owner, requireMock: true, providerAmountMinor: null);
+    }
+
+    /**
+     * Provider webhook completion (server-side only).
+     */
+    public function completeProviderDeposit(string $reference, ?int $providerAmountMinor = null): PaymentIntent
+    {
+        return $this->finalizeDeposit($reference, null, requireMock: false, providerAmountMinor: $providerAmountMinor);
+    }
+
+    private function finalizeDeposit(
+        string $reference,
+        ?User $owner,
+        bool $requireMock,
+        ?int $providerAmountMinor
+    ): PaymentIntent {
+        $tenant = Tenant::default();
+
+        return DB::transaction(function () use ($reference, $tenant, $owner, $requireMock, $providerAmountMinor) {
             $intent = PaymentIntent::query()
                 ->where('tenant_id', $tenant->id)
                 ->where('provider_reference', $reference)
@@ -86,6 +121,21 @@ final class PaymentService
             }
             if ($intent->status === 'completed') {
                 return $intent;
+            }
+            if ($intent->direction !== 'deposit') {
+                throw new RuntimeException('Invalid payment intent.');
+            }
+
+            $isMock = (bool) ($intent->provider_payload['mock'] ?? false);
+            if ($requireMock && ! $isMock) {
+                throw new RuntimeException('This deposit must be confirmed by the payment provider.');
+            }
+            if (! $requireMock && $isMock && ! $this->sandboxMockAllowed($tenant)) {
+                throw new RuntimeException('Mock deposits are not accepted in live mode.');
+            }
+
+            if ($providerAmountMinor !== null && (int) $providerAmountMinor !== (int) $intent->amount_minor) {
+                throw new RuntimeException('Payment amount mismatch.');
             }
 
             $wallet = $intent->wallet()->firstOrFail();
@@ -111,5 +161,42 @@ final class PaymentService
 
             return $intent;
         });
+    }
+
+    public function sandboxMockAllowed(Tenant $tenant): bool
+    {
+        $ops = $this->settings->getGroup($tenant, 'operations')['payload'] ?? [];
+        $payments = $this->settings->getGroup($tenant, 'payments')['payload'] ?? [];
+        $environment = ($ops['environment'] ?? 'sandbox') === 'live' ? 'live' : 'sandbox';
+        $mode = ($payments['mode'] ?? 'test') === 'live' ? 'live' : 'test';
+
+        return $environment === 'sandbox' && $mode === 'test';
+    }
+
+    public function depositsConfigured(Tenant $tenant): bool
+    {
+        if ($this->sandboxMockAllowed($tenant)) {
+            return true;
+        }
+        $secret = $this->settings->getSecretPlain($tenant, 'paystack_secret_key');
+
+        return is_string($secret) && str_starts_with($secret, 'sk_');
+    }
+
+    private function depositEmail(User $user, bool $allowMock): string
+    {
+        $email = trim((string) ($user->email ?? ''));
+        $synthetic = $email === '' || str_ends_with(strtolower($email), '@nextgen.local');
+
+        if ($synthetic) {
+            if ($allowMock) {
+                return $email !== '' ? $email : ('user'.$user->id.'@nextgen.local');
+            }
+            throw new InvalidArgumentException(
+                'Add a valid email address to your account before depositing.'
+            );
+        }
+
+        return $email;
     }
 }

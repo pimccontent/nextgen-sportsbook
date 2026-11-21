@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { IBM_Plex_Mono, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
@@ -11,6 +12,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CustomerShell } from "@/components/CustomerShell";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { CustomerMessaging } from "@/components/CustomerMessaging";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -75,8 +77,11 @@ export default function RootLayout({
                 <OperatorProvider>
                   <SlipProvider>
                     <SiteHeader />
-                    <CustomerShell>{children}</CustomerShell>
+                    <Suspense fallback={<main className="min-h-[40vh] px-4 py-8 text-sm text-[var(--ng-muted)]">Loading…</main>}>
+                      <CustomerShell>{children}</CustomerShell>
+                    </Suspense>
                     <BottomNavigation />
+                    <CustomerMessaging />
                   </SlipProvider>
                 </OperatorProvider>
               </AuthProvider>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" fill="none">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12080C"/>
+      <stop offset="0.5" stop-color="#1A1018"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <radialGradient id="liveGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1120 280) rotate(90) scale(420 480)">
+      <stop stop-color="#EF4444" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#EF4444" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 160) rotate(70) scale(380 340)">
+      <stop stop-color="#F5A524" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#F5A524" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#night)"/>
+  <rect width="1600" height="700" fill="url(#liveGlow)"/>
+  <rect width="1600" height="700" fill="url(#goldGlow)"/>
+  <!-- scoreboard -->
+  <rect x="980" y="190" width="460" height="260" rx="24" fill="#0A0A0A" fill-opacity="0.55" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="1030" cy="236" r="10" fill="#EF4444"/>
+  <circle cx="1030" cy="236" r="20" stroke="#EF4444" stroke-opacity="0.45" stroke-width="2" fill="none"/>
+  <text x="1060" y="244" fill="#EF4444" font-family="Segoe UI, sans-serif" font-size="22" font-weight="800">LIVE</text>
+  <text x="1030" y="310" fill="#FFFFFF" font-family="Segoe UI, sans-serif" font-size="28" font-weight="700">Hearts</text>
+  <text x="1320" y="310" fill="#F5A524" font-family="IBM Plex Mono, monospace" font-size="36" font-weight="700">1</text>
+  <text x="1030" y="370" fill="#FFFFFF" font-family="Segoe UI, sans-serif" font-size="28" font-weight="700">Kotoko</text>
+  <text x="1320" y="370" fill="#F5A524" font-family="IBM Plex Mono, monospace" font-size="36" font-weight="700">1</text>
+  <text x="1030" y="420" fill="#FFFFFF" fill-opacity="0.45" font-family="Segoe UI, sans-serif" font-size="16">67' · 2H</text>
+  <path d="M160 480c240-70 460-40 700 30s420 60 640 0" stroke="#F5A524" stroke-opacity="0.25" stroke-width="3"/>
+</svg>
