@@ -49,5 +49,13 @@ php artisan storage:link --force >/dev/null 2>&1 || true
 
 php artisan migrate --force --no-interaction || true
 
+# First boot / empty DB: seed demo tenant, admin/agent/customer, banners.
+# Identity/Wallet/Banner seeders are idempotent (updateOrCreate / skip if funded).
+USER_COUNT="$(php -r "require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo App\Models\User::query()->count();" 2>/dev/null || echo 0)"
+if [ "$USER_COUNT" = "0" ]; then
+  echo "No users found — seeding demo accounts and catalogue..."
+  php artisan db:seed --force --no-interaction || true
+fi
+
 echo "Starting NextGen API on :8080"
 exec php artisan serve --host=0.0.0.0 --port=8080
