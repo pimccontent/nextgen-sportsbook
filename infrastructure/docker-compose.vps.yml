@@ -1,11 +1,14 @@
-# Single-VPS stack: Postgres + Redis + API + Customer + Admin + Agent
-# Usage: see scripts/vps-up.sh and docs/architecture/VPS_DEPLOY.md
+# Single-VPS stack: Postgres + Redis + API + Customer + Admin + Agent (+ optional Caddy)
+# Usage: bash scripts/install-vps.sh --domain=example.com --email=ops@example.com
 #
-# After up:
-#   Customer  http://HOST:3000
-#   Admin     http://HOST:3001
-#   Agent     http://HOST:3002
-#   API       http://HOST:8081/api/v1/health
+# With DOMAIN set (HTTPS via Caddy):
+#   Customer  https://DOMAIN
+#   Admin     https://admin.DOMAIN
+#   Agent     https://agent.DOMAIN
+#   API       https://api.DOMAIN
+#
+# Without DOMAIN (IP / ports only):
+#   Customer  http://HOST:3000  Admin :3001  Agent :3002  API :8081
 
 name: nextgen-vps
 
@@ -43,6 +46,7 @@ services:
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8081}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -111,5 +115,27 @@ services:
     depends_on:
       - api
 
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    profiles: ["https"]
+    environment:
+      DOMAIN: ${DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.vps:/etc/caddy/Caddyfile:ro
+      - nextgen_vps_caddy_data:/data
+      - nextgen_vps_caddy_config:/config
+    depends_on:
+      - customer
+      - admin
+      - agent
+      - api
+
 volumes:
   nextgen_vps_pg:
+  nextgen_vps_caddy_data:
+  nextgen_vps_caddy_config:

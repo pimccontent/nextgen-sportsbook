@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-21 (pre-VPS review: obscure sync, hero banners, fixtures table)
+Last updated: 2026-11-21 (public repo + domain HTTPS one-command VPS install)
 
 ## Current phase
 Platform control expansion (match scripts, booking codes, competitions/feeds, bonus wallet, PIN reset, legal)
@@ -49,16 +49,19 @@ In progress — single-brand white-label sportsbook; sandbox/test money only unt
 - Admin settings includes `customer_messaging`; PUT round-trip enables popup/toast then restored off
 - Fixtures catalogue: `GET /api/v1/fixtures` returned 7
 - Customer login + wallet OK (cash/bonus/reserved present)
-- Risks for live VPS test: login throttle 429 under heavy probing; single-threaded `artisan serve`; first Docker build needs RAM/swap; HTTPS/DNS still operator-owned
+- Risks for live VPS test: login throttle 429 under heavy probing; first Docker build needs RAM/swap; DNS A records must exist before Let's Encrypt succeeds
 - Feature tests `BookingCodeAuthzTest`, `PasswordPinResetTest` still need PHPUnit in image/CI
 
 ## Deploy
-- **GitHub one-liner:** `git clone https://github.com/pimccontent/nextgen-sportsbook.git && cd nextgen-sportsbook && bash scripts/install-vps.sh`
+- **Repo:** https://github.com/pimccontent/nextgen-sportsbook (public)
+- **Live VPS one-liner (domain + Docker + Caddy HTTPS):** see `docs/architecture/VPS_DEPLOY.md`
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker
+  ```
+- DNS A records first: `YOUR_DOMAIN`, `admin.`, `agent.`, `api.` → VPS IP
 - Manual (no GitHub): `production deploy/` / `production-deploy.zip` → `bash install.sh`
-- Templates: `infrastructure/production-deploy/` · packer: `scripts/pack-production-deploy.ps1`
 
 ## Remaining / next
 - PHPUnit in Docker image / CI
 - Real payment/SMS providers only after licensing approvals
 - Optional: multi-worker API (replace single-threaded `artisan serve`) for many open admin tabs
-- Optional: HTTPS (Caddy/Nginx) in front of VPS ports

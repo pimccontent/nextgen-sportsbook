@@ -1,92 +1,92 @@
 # Cheap VPS — single installation (one command)
 
-This is the supported way to run the full stack on **one Linux VPS** (2 GB RAM
-minimum; 4 GB recommended for first image builds).
+Run the full stack on **one Linux VPS** (2 GB RAM minimum; 4 GB recommended
+for first image builds). Not for classic shared hosting (cPanel PHP-only).
 
-Not for classic shared hosting (cPanel PHP-only).
+## Full live install (domain + HTTPS) — one command
 
-## Prerequisites
+On a fresh **Ubuntu 22.04/24.04** VPS as **root**, with DNS already pointing
+at this server:
 
-- Ubuntu 22.04/24.04 (or similar)
-- Root or sudo
-- Docker Engine + Compose v2
+| Hostname | Type | Target |
+|---|---|---|
+| `YOUR_DOMAIN` | A | VPS public IP |
+| `admin.YOUR_DOMAIN` | A | VPS public IP |
+| `agent.YOUR_DOMAIN` | A | VPS public IP |
+| `api.YOUR_DOMAIN` | A | VPS public IP |
 
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker "$USER"   # then re-login
-```
-
-## One command (from GitHub)
-
-```bash
-git clone https://github.com/pimccontent/nextgen-sportsbook.git && cd nextgen-sportsbook && bash scripts/install-vps.sh
-```
-
-With Docker install:
+Then run:
 
 ```bash
-INSTALL_DOCKER=1 bash scripts/install-vps.sh
+curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker
 ```
 
-Already cloned — from the repo root:
+That single command:
+
+1. Installs system packages (`curl`, `git`, `ufw`, …)
+2. Installs Docker Engine + Compose v2 (`--install-docker`)
+3. Clones `pimccontent/nextgen-sportsbook` (`main`) into `~/nextgen-sportsbook`
+4. Opens firewall ports **22 / 80 / 443**
+5. Writes `.env.vps` with HTTPS URLs + CORS for the domain
+6. Builds and starts Postgres, Redis, API, Customer, Admin, Agent, and **Caddy**
+7. Caddy obtains **Let's Encrypt** certificates for the four hostnames
+
+### After install
+
+| App | URL |
+|---|---|
+| Customer | `https://YOUR_DOMAIN` |
+| Admin | `https://admin.YOUR_DOMAIN` |
+| Agent | `https://agent.YOUR_DOMAIN` |
+| API health | `https://api.YOUR_DOMAIN/api/v1/health` |
+
+Demo admin: `admin@nextgen.local` / `Password1!`  
+(Seeded automatically when the database has zero users.)
+
+## IP-only install (no domain / no HTTPS)
 
 ```bash
-bash scripts/vps-up.sh
+curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --install-docker --host=YOUR_VPS_IP
 ```
-
-First run:
-
-1. Creates `.env.vps` from `infrastructure/env.vps.example` (fills `HOST` when possible)
-2. Builds API + Customer + Admin + Agent images
-3. Starts Postgres, Redis, and all apps
-
-### URLs (default ports)
 
 | App | URL |
 |---|---|
 | Customer | `http://YOUR_IP:3000` |
 | Admin | `http://YOUR_IP:3001` |
 | Agent | `http://YOUR_IP:3002` |
-| API health | `http://YOUR_IP:8081/api/v1/health` |
+| API | `http://YOUR_IP:8081/api/v1/health` |
 
-Demo logins: see `docs/PROJECT_STATUS.md` / `docs/architecture/DEMO_ACCOUNTS.md`.
+## Already cloned
 
-## Configure before / after first boot
+```bash
+bash scripts/install-vps.sh --domain=YOUR_DOMAIN --email=YOU@EMAIL.com
+# or
+DOMAIN=YOUR_DOMAIN ACME_EMAIL=YOU@EMAIL.com bash scripts/vps-up.sh
+```
 
-Edit `.env.vps`:
+## Configure / rebuild
 
-- `POSTGRES_PASSWORD` — strong secret
-- `HOST` — public IP or domain
-- `NEXT_PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_CUSTOMER_ORIGIN` — must match what **browsers** use
+Edit `.env.vps` (created from `infrastructure/env.vps.example`):
+
+- `POSTGRES_PASSWORD` — rotated automatically if still the placeholder
+- `DOMAIN` / `ACME_EMAIL` — HTTPS mode
+- `NEXT_PUBLIC_*` / `CORS_ALLOWED_ORIGINS` — must match browser origins
 
 If you change `NEXT_PUBLIC_*`, rebuild frontends:
 
 ```bash
-docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps up -d --build customer admin agent
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https up -d --build customer admin agent
 ```
 
 ## Useful commands
 
 ```bash
-# Status
-docker compose -f infrastructure/docker-compose.vps.yml ps
-
-# Logs
-docker compose -f infrastructure/docker-compose.vps.yml logs -f api
-
-# Stop
-docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps down
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https ps
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs -f api
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https down
 ```
 
-## HTTPS (recommended next step)
-
-Point DNS A records at the VPS, then put **Caddy** or **Nginx** on ports 80/443
-proxying to `3000` / `3001` / `3002` / `8081`, and update `.env.vps` URLs to
-`https://…` + rebuild frontends.
-
 ## Memory tip (1–2 GB VPS)
-
-First `docker build` for three Next apps is heavy. Swap helps:
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile

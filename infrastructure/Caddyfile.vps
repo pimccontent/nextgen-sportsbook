@@ -1,0 +1,24 @@
+# Generated / templated by scripts/vps-up.sh — DOMAIN and ACME_EMAIL come from container env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy customer:3000
+}
+
+admin.{$DOMAIN} {
+	encode gzip
+	reverse_proxy admin:3000
+}
+
+agent.{$DOMAIN} {
+	encode gzip
+	reverse_proxy agent:3000
+}
+
+api.{$DOMAIN} {
+	encode gzip
+	reverse_proxy api:8080
+}
