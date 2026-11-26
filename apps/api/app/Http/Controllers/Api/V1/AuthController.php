@@ -8,6 +8,7 @@ use App\Models\Agent;
 use App\Models\Profile;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\WalletService;
 use App\Shared\Http\ApiResponse;
 use App\Support\PhoneNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -21,8 +22,10 @@ use Illuminate\Validation\ValidationException;
 
 final class AuthController
 {
-    public function __construct(private readonly AuditLogger $audit)
-    {
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly WalletService $wallets,
+    ) {
     }
 
     public function register(Request $request): JsonResponse
@@ -107,6 +110,7 @@ final class AuthController
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => $this->userPayload($user->fresh(['profile', 'agent'])),
+            'wallet' => $this->customerWalletPayload($user),
         ], 'Registered', 201);
     }
 
@@ -171,11 +175,16 @@ final class AuthController
             'role' => $user->role->value,
         ], User::class, $user->id);
 
-        return ApiResponse::success([
+        $payload = [
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => $this->userPayload($user->load(['profile', 'agent'])),
-        ], 'Authenticated');
+        ];
+        if ($data['portal'] === 'customer') {
+            $payload['wallet'] = $this->customerWalletPayload($user);
+        }
+
+        return ApiResponse::success($payload, 'Authenticated');
     }
 
     public function me(Request $request): JsonResponse
@@ -183,9 +192,14 @@ final class AuthController
         /** @var User $user */
         $user = $request->user();
 
-        return ApiResponse::success([
+        $payload = [
             'user' => $this->userPayload($user->load(['profile', 'agent'])),
-        ]);
+        ];
+        if ($user->role === UserRole::Customer) {
+            $payload['wallet'] = $this->customerWalletPayload($user);
+        }
+
+        return ApiResponse::success($payload);
     }
 
     public function logout(Request $request): JsonResponse
@@ -339,5 +353,13 @@ final class AuthController
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function customerWalletPayload(User $user): array
+    {
+        return $this->wallets->payload($this->wallets->forUser($user));
     }
 }

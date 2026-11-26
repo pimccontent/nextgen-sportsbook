@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, MessageCircle, Ticket, Wallet, UserRound } from "lucide-react";
 import { cn } from "@nextgen/ui";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
+import { useSessionBadges } from "@/lib/session-badges-context";
 
 const links = [
   { href: "/", label: "Sports", icon: Home },
@@ -19,52 +18,9 @@ const links = [
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  const { token } = useAuth();
   const { config } = useBrand();
+  const { openBets, chatUnread } = useSessionBadges();
   const chatEnabled = Boolean(config?.support?.enabled);
-  const [openBets, setOpenBets] = React.useState(0);
-  const [chatUnread, setChatUnread] = React.useState(0);
-
-  React.useEffect(() => {
-    if (!token) {
-      setOpenBets(0);
-      setChatUnread(0);
-      return;
-    }
-    let cancelled = false;
-    const load = () => {
-      void api
-        .bets(token)
-        .then((d) => {
-          if (!cancelled) {
-            setOpenBets(d.bets.filter((b) => b.status === "open").length);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setOpenBets(0);
-        });
-      if (chatEnabled) {
-        void api
-          .supportChat(token, { create: false, markRead: false })
-          .then((d) => {
-            if (!cancelled) setChatUnread(d.conversation?.unreadCustomer ?? 0);
-          })
-          .catch(() => {
-            if (!cancelled) setChatUnread(0);
-          });
-      }
-    };
-    load();
-    const tick = () => {
-      if (document.visibilityState === "hidden") return;
-      load();
-    };
-    const id = window.setInterval(tick, 12000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [token, pathname, chatEnabled]);
 
   const visibleLinks = links.filter((l) => l.href !== "/support" || chatEnabled);
 

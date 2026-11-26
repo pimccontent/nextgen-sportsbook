@@ -7,8 +7,10 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { BrandProvider } from "@/lib/brand-context";
 import { OperatorProvider } from "@/lib/operator-context";
+import { SessionBadgesProvider } from "@/lib/session-badges-context";
 import { SlipProvider } from "@/lib/slip-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { WalletProvider } from "@/lib/wallet-context";
 import { CUSTOMER_BOOT_SCRIPT } from "@/lib/boot-script";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNavigation } from "@/components/BottomNavigation";
@@ -79,18 +81,22 @@ export default function RootLayout({
           <BrandProvider>
             <MaintenanceGate>
               <AuthProvider>
-                <OperatorProvider>
-                  <SlipProvider>
-                    <SiteHeader />
-                    <Suspense fallback={<main className="min-h-[40vh] px-4 py-8 text-sm text-[var(--ng-muted)]">Loading…</main>}>
-                      <CustomerShell>{children}</CustomerShell>
-                    </Suspense>
-                    <BottomNavigation />
-                    <CustomerMessaging />
-                    <ActivityFeed />
-                    <SupportChat />
-                  </SlipProvider>
-                </OperatorProvider>
+                <WalletProvider>
+                  <SessionBadgesProvider>
+                    <OperatorProvider>
+                      <SlipProvider>
+                        <SiteHeader />
+                        <Suspense fallback={<main className="min-h-[40vh] px-4 py-8 text-sm text-[var(--ng-muted)]">Loading…</main>}>
+                          <CustomerShell>{children}</CustomerShell>
+                        </Suspense>
+                        <BottomNavigation />
+                        <CustomerMessaging />
+                        <ActivityFeed />
+                        <SupportChat />
+                      </SlipProvider>
+                    </OperatorProvider>
+                  </SessionBadgesProvider>
+                </WalletProvider>
               </AuthProvider>
             </MaintenanceGate>
           </BrandProvider>

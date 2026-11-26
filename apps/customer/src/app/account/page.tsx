@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, type CustomerProfile } from "@/lib/api";
+import { AccountMenu } from "@/components/AccountMenu";
+import { GuestAuthGate } from "@/components/GuestAuthGate";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AccountPage() {
@@ -79,23 +81,7 @@ export default function AccountPage() {
   }
 
   if (!user || !token) {
-    return (
-      <div className="cx-page mx-auto max-w-md">
-        <h1 className="cx-title">Account</h1>
-        <Link href="/login" className="cx-btn mt-4 w-full">
-          Log in
-        </Link>
-        <Link href="/register" className="cx-btn-ghost mt-2 w-full">
-          Register
-        </Link>
-        <Link
-          href="/forgot-password"
-          className="mt-3 block text-center text-xs font-semibold text-[var(--ng-accent)]"
-        >
-          Forgot password?
-        </Link>
-      </div>
-    );
+    return <GuestAuthGate title="Account" subtitle="Sign in to manage your profile" />;
   }
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -175,44 +161,18 @@ export default function AccountPage() {
     .slice(0, 2)
     .toUpperCase();
 
-  return (
-    <div className="cx-page mx-auto max-w-md pb-8">
-      <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ng-accent)] text-sm font-extrabold text-[var(--ng-accent-ink)]">
-          {initials}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="cx-title truncate">{form.display_name || form.name}</h1>
-          <p className="text-xs text-[var(--ng-muted)]">{form.phone}</p>
-        </div>
-      </div>
+  const onLogout = async () => {
+    await logout();
+    router.push("/login");
+  };
 
-      <div className="cx-segment mt-4 w-full overflow-x-auto">
-        {(
-          [
-            ["profile", "Profile"],
-            ["payout", "Payout"],
-            ["kyc", "KYC"],
-            ["password", "Password"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className="flex-1"
-            data-active={tab === id}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {error ? <p className="mt-3 text-sm text-[var(--ng-danger)]">{error}</p> : null}
-      {status ? <p className="mt-3 text-sm text-[var(--ng-win)]">{status}</p> : null}
+  const formPanel = (
+    <>
+      {error ? <p className="mb-3 text-sm text-[var(--ng-danger)]">{error}</p> : null}
+      {status ? <p className="mb-3 text-sm text-[var(--ng-win)]">{status}</p> : null}
 
       {tab === "profile" ? (
-        <form onSubmit={saveProfile} className="cx-card mt-4 space-y-3 p-4">
+        <form onSubmit={saveProfile} className="cx-card space-y-3 p-4">
           <Field label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
           <Field
             label="Display name"
@@ -233,7 +193,7 @@ export default function AccountPage() {
       ) : null}
 
       {tab === "payout" ? (
-        <form onSubmit={savePayout} className="cx-card mt-4 space-y-3 p-4">
+        <form onSubmit={savePayout} className="cx-card space-y-3 p-4">
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
             Method
             <select
@@ -291,7 +251,7 @@ export default function AccountPage() {
       ) : null}
 
       {tab === "kyc" ? (
-        <form onSubmit={submitKyc} className="cx-card mt-4 space-y-3 p-4">
+        <form onSubmit={submitKyc} className="cx-card space-y-3 p-4">
           <p className="text-xs text-[var(--ng-muted)]">
             Status:{" "}
             <span className="font-semibold text-[var(--ng-text)]">
@@ -337,7 +297,7 @@ export default function AccountPage() {
       ) : null}
 
       {tab === "password" ? (
-        <form onSubmit={changePassword} className="cx-card mt-4 space-y-3 p-4">
+        <form onSubmit={changePassword} className="cx-card space-y-3 p-4">
           <Field
             label="Current password"
             value={passwordForm.current_password}
@@ -369,41 +329,107 @@ export default function AccountPage() {
           </Link>
         </form>
       ) : null}
+    </>
+  );
 
-      <div className="mt-5 space-y-2">
-        <Link href="/wallet" className="cx-card block px-4 py-3 text-sm font-semibold">
-          Wallet
-        </Link>
-        <Link href="/my-bets" className="cx-card block px-4 py-3 text-sm font-semibold">
-          My bets
-        </Link>
-        <Link href="/legal/terms" className="cx-card block px-4 py-3 text-sm font-semibold">
-          Terms
-        </Link>
-        <Link href="/legal/privacy" className="cx-card block px-4 py-3 text-sm font-semibold">
-          Privacy
-        </Link>
-        <Link
-          href="/legal/responsible-gambling"
-          className="cx-card block px-4 py-3 text-sm font-semibold"
-        >
-          Responsible gambling
-        </Link>
-        <Link href="/legal/about" className="cx-card block px-4 py-3 text-sm font-semibold">
-          About
-        </Link>
+  return (
+    <div className="cx-page mx-auto max-w-5xl pb-10">
+      {/* Desktop: settings sidebar + content */}
+      <div className="hidden gap-8 md:grid md:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ng-accent)] text-sm font-extrabold text-[var(--ng-accent-ink)]">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="cx-title truncate">{form.display_name || form.name}</h1>
+              <p className="text-xs text-[var(--ng-muted)]">{form.phone}</p>
+            </div>
+          </div>
+          <nav className="space-y-5 rounded-2xl border border-[var(--ng-border)] bg-[var(--ng-surface)] p-3">
+            <div className="space-y-1">
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--ng-muted)]">
+                Account
+              </p>
+              {(
+                [
+                  ["profile", "Profile"],
+                  ["payout", "Payout"],
+                  ["kyc", "KYC"],
+                  ["password", "Password"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={[
+                    "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold transition",
+                    tab === id
+                      ? "bg-[color-mix(in_srgb,var(--ng-accent)_18%,transparent)] text-[var(--ng-accent)]"
+                      : "text-[var(--ng-text)] hover:bg-[var(--ng-surface-2)]",
+                  ].join(" ")}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <AccountMenu variant="rail" />
+          </nav>
+          <button type="button" className="cx-btn-ghost w-full" onClick={() => void onLogout()}>
+            Log out
+          </button>
+        </aside>
+
+        <div className="min-w-0">
+          <h2 className="mb-4 text-lg font-bold capitalize text-[var(--ng-text)]">{tab}</h2>
+          {formPanel}
+        </div>
       </div>
 
-      <button
-        type="button"
-        className="cx-btn-ghost mt-5 w-full"
-        onClick={async () => {
-          await logout();
-          router.push("/login");
-        }}
-      >
-        Log out
-      </button>
+      {/* Mobile: profile + tabs + forms (nav links live in header drawer) */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ng-accent)] text-sm font-extrabold text-[var(--ng-accent-ink)]">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="cx-title truncate">{form.display_name || form.name}</h1>
+            <p className="text-xs text-[var(--ng-muted)]">{form.phone}</p>
+          </div>
+        </div>
+
+        <div className="cx-segment mt-4 w-full overflow-x-auto">
+          {(
+            [
+              ["profile", "Profile"],
+              ["payout", "Payout"],
+              ["kyc", "KYC"],
+              ["password", "Password"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className="flex-1"
+              data-active={tab === id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">{formPanel}</div>
+
+        <button
+          type="button"
+          className="cx-btn-ghost mt-6 w-full"
+          onClick={() => void onLogout()}
+        >
+          Log out
+        </button>
+      </div>
     </div>
   );
 }

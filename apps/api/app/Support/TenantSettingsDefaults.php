@@ -21,6 +21,9 @@ final class TenantSettingsDefaults
                 'support_phone' => '0240000000',
                 'support_chat_enabled' => false,
                 'support_chat_label' => 'Live support',
+                // Default appearance for first-time visitors (no local theme preference yet).
+                // day | night | system (follow device color scheme)
+                'default_theme' => 'night',
                 'customer_primary' => '#18181b',
                 'color_primary' => '#18181b',
                 'color_accent' => '#F5A524',

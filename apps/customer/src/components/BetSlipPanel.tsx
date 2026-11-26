@@ -7,7 +7,9 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
 import { useOperatorBuilder } from "@/lib/operator-context";
+import { useSessionBadges } from "@/lib/session-badges-context";
 import { useSlip } from "@/lib/slip-context";
+import { useWallet } from "@/lib/wallet-context";
 
 interface BetSlipPanelProps {
   open?: boolean;
@@ -34,6 +36,8 @@ export function BetSlipPanel({
   const { token, user } = useAuth();
   const { config } = useBrand();
   const { session: operator } = useOperatorBuilder();
+  const { refreshWallet } = useWallet();
+  const { refreshBadges } = useSessionBadges();
   const [stake, setStake] = React.useState("10");
   const [status, setStatus] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -98,6 +102,8 @@ export function BetSlipPanel({
       });
       clear();
       setStatus(`Accepted · ${bet.bet.id}`);
+      void refreshWallet();
+      void refreshBadges();
       onClose?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Bet failed");

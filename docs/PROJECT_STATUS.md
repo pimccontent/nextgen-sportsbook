@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-26 (UI polish, draft-first fixtures, % commissions, Codecanyon guide)
+Last updated: 2026-11-26 (default theme + guest auth gate + account menu redesign)
 
 ## Current phase
 Platform control expansion (match scripts, booking codes, competitions/feeds, bonus wallet, PIN reset, legal)
@@ -9,6 +9,11 @@ Platform control expansion (match scripts, booking codes, competitions/feeds, bo
 In progress — single-brand white-label sportsbook; sandbox/test money only until independently licensed
 
 ## Completed this pass
+- **Default theme:** Admin → Branding → Default theme (`day` / `night` / `system`); first-time customer visitors use it until they toggle; boot script + public config aware
+- **Guest auth UX:** centered `GuestAuthGate` on Account / Wallet / My bets when logged out
+- **Account menu:** mobile drawer-style grouped sheets with icons; desktop settings sidebar + content (inspired by 21st account/settings patterns)
+- **Customer SWR data:** shared `WalletProvider` (localStorage snapshot, 30s visibility poll, never paint unknown as `0`) + `SessionBadgesProvider`; `/auth/me` + login/register return wallet so navbar paints without a second wait; header uses token+wallet (not blocked on `/me` user); place-bet/deposit/withdraw call `refreshWallet`/`applyWallet`
+- **Admin InfoTip pass:** fixture edit essays → InfoTips; fixtures list tip; settings locale/money + long labels; ImageUploadField hints; support composer essay removed
 - **UI polish:** shared `InfoTip` (admin/customer/agent); stripped essay copy from settings and list pages; short labels + hover tips
 - **Fixtures draft-first:** tenant `auto_publish` default **off**; publish/bulk publish set publication without `admin_locked`; lock only on admin edits (schedule, scores, odds, markets, script, custom create); unlocked fixtures accept provider score/status updates on sync; catalogue refresh respects `auto_publish`
 - **Percentage UX:** Admin Promotions/Commissions show `%` (stored as bps); Agent commissions list shows `2%` not `200 bps`; flat amounts stay GHS

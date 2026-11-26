@@ -418,6 +418,7 @@ export default function FixturesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Fixtures"
+        tip="Sync imports drafts unless auto-publish is on. Publish without locking; editing schedule/scores/odds/script locks provider updates."
         actions={
           <>
             <button type="button" onClick={() => setCreateOpen(true)} className={btnGhostClass}>

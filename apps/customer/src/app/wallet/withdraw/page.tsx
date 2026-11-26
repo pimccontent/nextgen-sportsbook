@@ -8,18 +8,20 @@ import { formatGhs } from "@nextgen/mock-data";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
+import { useWallet } from "@/lib/wallet-context";
 
 export default function WithdrawPage() {
   const router = useRouter();
   const { token, user, loading } = useAuth();
   const { config } = useBrand();
+  const { wallet: liveWallet, applyWallet, refreshWallet } = useWallet();
   const [amount, setAmount] = React.useState("20");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
-  const [available, setAvailable] = React.useState(0);
   const [payoutHint, setPayoutHint] = React.useState<string | null>(null);
   const [kycStatus, setKycStatus] = React.useState<string>("none");
+  const [profileReady, setProfileReady] = React.useState(false);
   const [rulesAck, setRulesAck] = React.useState(false);
 
   const wallet = config?.wallet;
@@ -42,10 +44,10 @@ export default function WithdrawPage() {
     if (!token) return;
     let cancelled = false;
     const load = () => {
-      void Promise.all([api.wallet(token), api.profile(token)])
-        .then(([w, p]) => {
+      void api
+        .profile(token)
+        .then((p) => {
           if (cancelled) return;
-          setAvailable(w.wallet.availableMinor);
           setKycStatus(p.profile.kyc?.status ?? "none");
           const pay = p.profile.payout;
           if (pay?.method === "momo" && pay.momo_number) {
@@ -55,16 +57,16 @@ export default function WithdrawPage() {
           } else {
             setPayoutHint(null);
           }
+          setProfileReady(true);
         })
         .catch(() => undefined);
     };
     load();
-    const id = window.setInterval(load, 12000);
+    void refreshWallet();
     return () => {
       cancelled = true;
-      window.clearInterval(id);
     };
-  }, [token]);
+  }, [token, refreshWallet]);
 
   const kycOk = !requireKyc || ["pending", "verified"].includes(kycStatus);
   const payoutOk = !requirePayout || Boolean(payoutHint);
@@ -82,7 +84,7 @@ export default function WithdrawPage() {
         amount_minor: amountMinor,
         idempotency_key: `wd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });
-      setAvailable(res.wallet.availableMinor);
+      applyWallet(res.wallet);
       setMessage(`Request ${res.withdrawal.status}`);
       setTimeout(() => router.push("/wallet"), 1000);
     } catch (err) {
@@ -107,7 +109,8 @@ export default function WithdrawPage() {
       </Link>
       <h1 className="cx-title mt-3">Withdraw</h1>
       <p className="mt-1 text-xs text-[var(--ng-muted)]">
-        Available {formatGhs(available)}
+        Available{" "}
+        {liveWallet ? formatGhs(liveWallet.availableMinor) : profileReady ? "—" : "…"}
       </p>
 
       <section className="cx-card mt-4 p-4">

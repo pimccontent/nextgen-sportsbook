@@ -195,6 +195,11 @@ final class TenantSettingsService
         $branding['color_text'] = (string) ($day['text'] ?? $branding['color_text']);
         $branding['color_primary'] = (string) ($day['text'] ?? $branding['color_primary']);
 
+        $defaultTheme = (string) ($branding['default_theme'] ?? 'night');
+        $branding['default_theme'] = in_array($defaultTheme, ['day', 'night', 'system'], true)
+            ? $defaultTheme
+            : 'night';
+
         $branding['logo_url'] = $this->absoluteMediaUrl($branding['logo_url'] ?? null);
         $branding['favicon_url'] = $this->absoluteMediaUrl($branding['favicon_url'] ?? null);
 

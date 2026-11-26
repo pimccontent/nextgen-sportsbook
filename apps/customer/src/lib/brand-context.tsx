@@ -24,6 +24,8 @@ export type PublicConfig = {
     support_chat_enabled?: boolean;
     support_chat_url?: string | null;
     support_chat_label?: string;
+    /** Operator default for first-time visitors: day | night | system */
+    default_theme?: "day" | "night" | "system" | string;
     color_primary: string;
     color_accent: string;
     color_background: string;
@@ -203,7 +205,7 @@ function readBootTheme(): ThemeMode {
 }
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
-  const { theme } = useTheme();
+  const { theme, applyOperatorDefault } = useTheme();
   // SSR and the first client render must match — never read localStorage in useState.
   const [config, setConfig] = React.useState<PublicConfig | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -211,6 +213,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const cached = readCachedConfig();
     if (cached) {
+      applyOperatorDefault(cached.branding?.default_theme);
       applyBranding(cached.branding, theme || readBootTheme());
       setConfig(cached);
       setLoading(false);
@@ -222,6 +225,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         const data = await api.publicConfig();
         if (cancelled) return;
         writeCachedConfig(data);
+        applyOperatorDefault(data.branding?.default_theme);
         setConfig(data);
         applyBranding(data.branding, theme || readBootTheme());
       } catch {

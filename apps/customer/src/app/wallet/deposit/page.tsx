@@ -8,11 +8,13 @@ import { formatGhs } from "@nextgen/mock-data";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
+import { useWallet } from "@/lib/wallet-context";
 
 export default function DepositPage() {
   const router = useRouter();
   const { token, user, loading } = useAuth();
   const { config } = useBrand();
+  const { applyWallet, refreshWallet } = useWallet();
   const [amount, setAmount] = React.useState("20");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -54,11 +56,15 @@ export default function DepositPage() {
       }
 
       if (payment.mock && mockDeposits) {
-        await api.completeMockDeposit(token, payment.reference);
+        const completed = await api.completeMockDeposit(token, payment.reference);
+        applyWallet(completed.wallet);
         setMessage("Deposit completed");
         setTimeout(() => router.push("/wallet"), 900);
         return;
       }
+
+      // Live redirect path: refresh when user returns; soft refresh now as well.
+      void refreshWallet();
 
       setError(
         "Unable to start a secure payment session. Please try again later or contact support."

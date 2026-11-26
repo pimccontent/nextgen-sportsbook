@@ -20,9 +20,8 @@ export default function LobbyPage() {
     useSlip();
   const [mode, setMode] = React.useState<LobbyMode>("upcoming");
   const [competitionId, setCompetitionId] = React.useState<string>("all");
-  const [competitions, setCompetitions] =
-    React.useState<Competition[]>(mockCompetitions);
-  const [fixtures, setFixtures] = React.useState<Fixture[]>(mockFixtures);
+  const [competitions, setCompetitions] = React.useState<Competition[]>([]);
+  const [fixtures, setFixtures] = React.useState<Fixture[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [syncedAt, setSyncedAt] = React.useState<string | null>(null);
   const [nowMs, setNowMs] = React.useState(() => Date.now());

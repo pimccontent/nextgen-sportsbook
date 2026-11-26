@@ -380,7 +380,10 @@ export default function SettingsPage() {
                 />
                 <div className="sm:col-span-2">
                   <label className={labelClass}>
-                    Greeting (auto-sent when a customer opens chat)
+                    <span className="inline-flex items-center gap-1">
+                      Greeting
+                      <InfoTip text="Auto-sent when a customer opens chat." />
+                    </span>
                     <textarea
                       value={String(draft.greeting ?? "")}
                       onChange={(e) => setField("greeting", e.target.value)}
@@ -391,7 +394,10 @@ export default function SettingsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelClass}>
-                    Offline message (outside business hours)
+                    <span className="inline-flex items-center gap-1">
+                      Offline message
+                      <InfoTip text="Shown outside business hours." />
+                    </span>
                     <textarea
                       value={String(draft.offline_message ?? "")}
                       onChange={(e) => setField("offline_message", e.target.value)}
@@ -422,7 +428,10 @@ export default function SettingsPage() {
                 />
                 <div className="sm:col-span-2">
                   <label className={labelClass}>
-                    Canned replies (JSON array of {"{id,title,body}"})
+                    <span className="inline-flex items-center gap-1">
+                      Canned replies
+                      <InfoTip text='JSON array of {id, title, body} objects.' />
+                    </span>
                     <textarea
                       value={JSON.stringify(draft.canned_replies ?? [], null, 2)}
                       onChange={(e) => {
@@ -606,6 +615,18 @@ export default function SettingsPage() {
                   value={String(draft.legal_name ?? "")}
                   onChange={(v) => setField("legal_name", v)}
                 />
+                <Select
+                  label="Default theme"
+                  value={String(draft.default_theme ?? "night")}
+                  options={["night", "day", "system"]}
+                  onChange={(v) => setField("default_theme", v)}
+                />
+                <div className="flex items-end pb-1 text-[11px] text-[var(--text-tertiary)] sm:col-span-1">
+                  <span className="inline-flex items-center gap-1">
+                    Applies when a visitor has not chosen a theme yet
+                    <InfoTip text="night / day lock the first paint. system follows the device light/dark setting. Visitors who toggle theme keep their own preference in the browser." />
+                  </span>
+                </div>
                 <ImageUploadField
                   label="Site logo"
                   kind="logo"
@@ -739,10 +760,10 @@ export default function SettingsPage() {
                 value={String(draft.currency_name ?? "Ghana Cedis")}
                 onChange={(v) => setField("currency_name", v)}
               />
-              <p className="sm:col-span-2 text-[11px] text-[var(--text-tertiary)]">
-                All money amounts below are entered and shown in <strong>Ghana Cedis (GHS)</strong>.
-                The ledger still stores integer pesewas (1 GHS = 100) internally.
-              </p>
+              <div className="sm:col-span-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+                Money
+                <InfoTip text="Amounts are entered and shown in Ghana Cedis (GHS). The ledger stores integer pesewas (1 GHS = 100)." />
+              </div>
               <Field
                 label="Timezone"
                 value={String(draft.timezone ?? "")}
@@ -884,7 +905,10 @@ export default function SettingsPage() {
               </div>
               <div className="sm:col-span-2">
                 <label className={labelClass}>
-                  Withdrawal rules text (customer must acknowledge)
+                  <span className="inline-flex items-center gap-1">
+                    Withdrawal rules text
+                    <InfoTip text="Customer must acknowledge these rules before withdrawing." />
+                  </span>
                   <textarea
                     value={String(draft.withdrawal_rules_text ?? "")}
                     onChange={(e) => setField("withdrawal_rules_text", e.target.value)}

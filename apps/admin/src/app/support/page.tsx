@@ -708,9 +708,6 @@ function SupportAdminPageInner() {
                     <Send className="h-4 w-4" />
                   </button>
                 </div>
-                <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)]">
-                  Enter to send · Shift+Enter for new line · Images preview in chat
-                </p>
               </div>
             </>
           )}

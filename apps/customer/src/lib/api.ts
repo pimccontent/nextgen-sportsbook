@@ -137,19 +137,54 @@ export const api = {
     name?: string;
     referral_code?: string;
   }) {
-    return request<{ token: string; user: ApiUser }>("/auth/register", {
+    return request<{
+      token: string;
+      user: ApiUser;
+      wallet?: {
+        currency: string;
+        availableMinor: number;
+        bonusMinor?: number;
+        pendingMinor: number;
+        reservedMinor: number;
+        withdrawableMinor?: number;
+        label?: string;
+      };
+    }>("/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
     });
   },
   login(input: { phone: string; password: string; portal: "customer" }) {
-    return request<{ token: string; user: ApiUser }>("/auth/login", {
+    return request<{
+      token: string;
+      user: ApiUser;
+      wallet?: {
+        currency: string;
+        availableMinor: number;
+        bonusMinor?: number;
+        pendingMinor: number;
+        reservedMinor: number;
+        withdrawableMinor?: number;
+        label?: string;
+      };
+    }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(input),
     });
   },
   me(token: string) {
-    return request<{ user: ApiUser }>("/auth/me", {}, token);
+    return request<{
+      user: ApiUser;
+      wallet?: {
+        currency: string;
+        availableMinor: number;
+        bonusMinor?: number;
+        pendingMinor: number;
+        reservedMinor: number;
+        withdrawableMinor?: number;
+        label?: string;
+      };
+    }>("/auth/me", {}, token);
   },
   logout(token: string) {
     return request<null>("/auth/logout", { method: "POST" }, token);

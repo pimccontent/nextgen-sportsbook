@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import * as React from "react";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useAdminAuth } from "@/lib/auth-context";
 import {
   type AdminFixture,
@@ -653,15 +654,12 @@ export default function FixtureDetailPage() {
       {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
-      <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel)] px-3 py-2 text-xs text-[var(--text-tertiary)]">
-        Simple path: set schedule → pick duration → add timed goals (e.g. Home 1H 23′) →{" "}
-        <strong className="text-[var(--text-primary)]">Save &amp; arm</strong>. Customers see each
-        goal only when that minute is reached live — not before kickoff.
-      </p>
-
       {/* 1. Schedule */}
       <section className="admin-card space-y-4 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">1. Schedule</h2>
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          1. Schedule
+          <InfoTip text="Set teams, competition, and kickoff first. Then configure auto-run below and Save & arm. Customers only see goals when each live minute is reached." />
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-[11px] text-[var(--text-tertiary)]">
             Home team
@@ -723,24 +721,28 @@ export default function FixtureDetailPage() {
       {/* 2. Auto-run */}
       <section className="admin-card space-y-4 p-4 sm:p-5">
         <div>
-          <h2 className="text-sm font-semibold">2. Auto-run (upcoming → live)</h2>
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            2. Auto-run (upcoming → live)
+            <InfoTip text="Arms a scripted match that starts at kickoff. Status shows draft / armed / running." />
+          </h2>
           <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
-            Script status: <strong className="text-[var(--text-primary)]">{scriptStatus}</strong>
+            Script: <strong className="text-[var(--text-primary)]">{scriptStatus}</strong>
           </p>
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+          <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
             Match length
+            <InfoTip text="Short ≈ 2 min total · Demo ≈ 10 min · Full 90 uses real-time half lengths." />
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {(
               [
-                ["short", "Short", "~2 min total"],
-                ["demo", "Demo", "~10 min total"],
-                ["full", "Full 90", "Real-time halves"],
+                ["short", "Short"],
+                ["demo", "Demo"],
+                ["full", "Full 90"],
               ] as const
-            ).map(([key, label, hint]) => (
+            ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
@@ -752,7 +754,6 @@ export default function FixtureDetailPage() {
                 }`}
               >
                 <p className="text-sm font-semibold">{label}</p>
-                <p className="text-[10px] text-[var(--text-tertiary)]">{hint}</p>
               </button>
             ))}
           </div>
@@ -760,15 +761,10 @@ export default function FixtureDetailPage() {
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-                Timed goals (outcome)
-              </p>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
-                Example: Home · 1H · 23′ then Away · 1H · 30′. Score appears for customers when
-                each minute is reached.
-              </p>
-            </div>
+            <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+              Timed goals
+              <InfoTip text="Example: Home · 1H · 23′ then Away · 1H · 30′. Score updates for customers when each minute is reached. Leave empty to set FT in Advanced (goals auto-placed)." />
+            </p>
             <button
               type="button"
               className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs font-bold"
@@ -782,8 +778,7 @@ export default function FixtureDetailPage() {
 
           {goals.length === 0 ? (
             <p className="rounded-lg border border-dashed border-[var(--border-default)] px-3 py-3 text-[11px] text-[var(--text-tertiary)]">
-              No goals yet — add timed goals above, or leave empty and set a final score in
-              Advanced (goals will be auto-placed).
+              No goals yet
             </p>
           ) : (
             <div className="space-y-2">
@@ -905,25 +900,24 @@ export default function FixtureDetailPage() {
           {busy ? "Working…" : "Save & arm for kickoff"}
         </button>
 
-        <button
-          type="button"
-          onClick={() => setShowScriptAdvanced((v) => !v)}
-          className="flex items-center gap-1 text-xs font-semibold text-[var(--nav-active-fg)]"
-        >
-          {showScriptAdvanced ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
-          Advanced (score-only shortcut, ET/pens, custom timing)
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowScriptAdvanced((v) => !v)}
+            className="flex items-center gap-1 text-xs font-semibold text-[var(--nav-active-fg)]"
+          >
+            {showScriptAdvanced ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+            Advanced
+          </button>
+          <InfoTip text="Score-only shortcut when timed goals are empty (API auto-places goals). Also ET/pens and custom timing." />
+        </div>
 
         {showScriptAdvanced ? (
           <div className="space-y-3 border-t border-[var(--border-soft)] pt-3">
-            <p className="text-[11px] text-[var(--text-tertiary)]">
-              Score-only shortcut (used only when the timed goal list is empty — API auto-places
-              goals).
-            </p>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-[11px] text-[var(--text-tertiary)]">
                 FT {edit.home || "Home"}
@@ -1238,12 +1232,10 @@ export default function FixtureDetailPage() {
           onClick={() => setShowManualLive((v) => !v)}
           className="flex w-full items-center justify-between gap-2 text-left"
         >
-          <div>
-            <h2 className="text-sm font-semibold">Manual live control</h2>
-            <p className="text-[11px] text-[var(--text-tertiary)]">
-              Override clock, period, and score — only if auto-run is not enough
-            </p>
-          </div>
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            Manual live control
+            <InfoTip text="Override clock, period, and score only if auto-run is not enough." />
+          </h2>
           {showManualLive || isLive || isFinished ? (
             <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
           ) : (

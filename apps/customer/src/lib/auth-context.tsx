@@ -5,11 +5,23 @@ import { api, ApiError, type ApiUser } from "@/lib/api";
 
 const TOKEN_KEY = "nextgen.customer.token";
 
+export type BootWallet = {
+  currency: string;
+  availableMinor: number;
+  bonusMinor?: number;
+  withdrawableMinor?: number;
+  pendingMinor: number;
+  reservedMinor: number;
+  label?: string;
+};
+
 type AuthContextValue = {
   user: ApiUser | null;
   token: string | null;
   loading: boolean;
   error: string | null;
+  /** Wallet returned with login/me — applied by WalletProvider without a second wait. */
+  bootWallet: BootWallet | null;
   login: (phone: string, password: string) => Promise<void>;
   register: (input: {
     phone: string;
@@ -29,6 +41,7 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<ApiUser | null>(null);
   const [token, setToken] = React.useState<string | null>(null);
+  const [bootWallet, setBootWallet] = React.useState<BootWallet | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -42,16 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Expose token immediately so WalletProvider can paint cache + fetch in parallel with /me.
       if (!cancelled) setToken(existing);
 
       try {
         const data = await api.me(existing);
-        if (!cancelled) setUser(data.user);
+        if (!cancelled) {
+          setUser(data.user);
+          if (data.wallet) setBootWallet(data.wallet as BootWallet);
+        }
       } catch {
         window.localStorage.removeItem(TOKEN_KEY);
         if (!cancelled) {
           setToken(null);
           setUser(null);
+          setBootWallet(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -64,17 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const persist = (nextToken: string, nextUser: ApiUser) => {
+  const persist = (
+    nextToken: string,
+    nextUser: ApiUser,
+    wallet?: BootWallet | null
+  ) => {
     window.localStorage.setItem(TOKEN_KEY, nextToken);
     setToken(nextToken);
     setUser(nextUser);
+    if (wallet) setBootWallet(wallet);
   };
 
   const login = async (phone: string, password: string) => {
     setError(null);
     try {
       const data = await api.login({ phone, password, portal: "customer" });
-      persist(data.token, data.user);
+      persist(data.token, data.user, data.wallet as BootWallet | undefined);
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : "Login failed. Try again.";
@@ -95,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const data = await api.register(input);
-      persist(data.token, data.user);
+      persist(data.token, data.user, data.wallet as BootWallet | undefined);
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -115,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.localStorage.removeItem(TOKEN_KEY);
       setToken(null);
       setUser(null);
+      setBootWallet(null);
     }
   };
 
@@ -125,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         loading,
         error,
+        bootWallet,
         login,
         register,
         logout,

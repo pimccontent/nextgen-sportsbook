@@ -5,7 +5,9 @@ import Link from "next/link";
 import { formatGhs } from "@nextgen/mock-data";
 import { ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { GuestAuthGate } from "@/components/GuestAuthGate";
 import { useAuth } from "@/lib/auth-context";
+import { useWallet } from "@/lib/wallet-context";
 
 type HistoryRow = {
   id: number;
@@ -37,15 +39,10 @@ function formatWhen(iso: string | null): string {
 
 export default function WalletPage() {
   const { token, user, loading: authLoading } = useAuth();
-  const [wallet, setWallet] = React.useState<{
-    availableMinor: number;
-    bonusMinor?: number;
-    withdrawableMinor?: number;
-    pendingMinor: number;
-    reservedMinor: number;
-  } | null>(null);
+  const { wallet, status, refreshWallet } = useWallet();
   const [withdrawals, setWithdrawals] = React.useState<HistoryRow[]>([]);
   const [deposits, setDeposits] = React.useState<HistoryRow[]>([]);
+  const [historyReady, setHistoryReady] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [historyTab, setHistoryTab] = React.useState<"withdrawals" | "deposits">(
     "withdrawals"
@@ -54,48 +51,51 @@ export default function WalletPage() {
   React.useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    const load = () => {
-      void Promise.all([
-        api.wallet(token),
-        api.withdrawals(token),
-        api.deposits(token),
-      ])
-        .then(([w, wd, dep]) => {
+    const load = (soft: boolean) => {
+      void Promise.all([api.withdrawals(token), api.deposits(token)])
+        .then(([wd, dep]) => {
           if (cancelled) return;
-          setWallet(w.wallet);
           setWithdrawals(wd.withdrawals);
           setDeposits(dep.deposits);
+          setHistoryReady(true);
+          setError(null);
         })
         .catch((err) => {
-          if (!cancelled) {
-            setError(err instanceof ApiError ? err.message : "Failed to load wallet");
+          if (cancelled) return;
+          if (!soft) {
+            setError(err instanceof ApiError ? err.message : "Failed to load history");
           }
         });
     };
-    load();
-    const id = window.setInterval(load, 15000);
+    load(false);
+    void refreshWallet();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      load(true);
+    }, 30_000);
+
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(id);
     };
-  }, [token]);
+  }, [token, refreshWallet]);
 
   if (authLoading) {
     return <p className="cx-page text-sm text-[var(--ng-muted)]">Loading…</p>;
   }
 
   if (!user || !token) {
-    return (
-      <div className="cx-page">
-        <h1 className="cx-title">Wallet</h1>
-        <Link href="/login" className="cx-btn mt-4">
-          Log in
-        </Link>
-      </div>
-    );
+    return <GuestAuthGate title="Wallet" subtitle="Sign in to view your balance" />;
   }
 
   const history = historyTab === "withdrawals" ? withdrawals : deposits;
+  const showSkeleton = !wallet && status !== "error";
 
   return (
     <div className="cx-page mx-auto max-w-lg">
@@ -106,21 +106,33 @@ export default function WalletPage() {
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ng-muted)]">
           Cash (withdrawable)
         </p>
-        <p className="ng-tabular mt-1 text-3xl font-bold text-[var(--ng-accent)]">
-          {formatGhs(wallet?.availableMinor ?? 0)}
-        </p>
+        {showSkeleton ? (
+          <div className="mt-2 h-9 w-40 animate-pulse rounded-md bg-[var(--ng-border)]" />
+        ) : (
+          <p className="ng-tabular mt-1 text-3xl font-bold text-[var(--ng-accent)]">
+            {formatGhs(wallet?.availableMinor ?? 0)}
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <p className="text-[11px] text-[var(--ng-muted)]">Bonus (betting only)</p>
-            <p className="ng-tabular font-semibold">
-              {formatGhs(wallet?.bonusMinor ?? 0)}
-            </p>
+            {showSkeleton ? (
+              <div className="mt-1 h-5 w-20 animate-pulse rounded bg-[var(--ng-border)]" />
+            ) : (
+              <p className="ng-tabular font-semibold">
+                {formatGhs(wallet?.bonusMinor ?? 0)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-[11px] text-[var(--ng-muted)]">Reserved</p>
-            <p className="ng-tabular font-semibold">
-              {formatGhs(wallet?.reservedMinor ?? 0)}
-            </p>
+            {showSkeleton ? (
+              <div className="mt-1 h-5 w-20 animate-pulse rounded bg-[var(--ng-border)]" />
+            ) : (
+              <p className="ng-tabular font-semibold">
+                {formatGhs(wallet?.reservedMinor ?? 0)}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -174,7 +186,9 @@ export default function WalletPage() {
         </div>
 
         <div className="cx-card mt-3 divide-y divide-[var(--ng-border)] overflow-hidden">
-          {history.length === 0 ? (
+          {!historyReady ? (
+            <p className="px-4 py-6 text-center text-sm text-[var(--ng-muted)]">Loading…</p>
+          ) : history.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-[var(--ng-muted)]">
               No {historyTab} yet
             </p>

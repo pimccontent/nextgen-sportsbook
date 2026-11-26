@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Trophy, XCircle, Timer } from "lucide-react";
 import { formatGhs } from "@nextgen/mock-data";
 import { api, ApiError, type CustomerBet } from "@/lib/api";
+import { GuestAuthGate } from "@/components/GuestAuthGate";
 import { useAuth } from "@/lib/auth-context";
 
 export default function MyBetsPage() {
@@ -39,14 +40,7 @@ export default function MyBetsPage() {
   }
 
   if (!user) {
-    return (
-      <div className="cx-page">
-        <h1 className="cx-title">My bets</h1>
-        <Link href="/login" className="cx-btn mt-4">
-          Log in
-        </Link>
-      </div>
-    );
+    return <GuestAuthGate title="My bets" subtitle="Sign in to see your tickets" />;
   }
 
   const filtered = bets.filter((b) =>

@@ -3,16 +3,23 @@ export const CUSTOMER_BOOT_SCRIPT = `(function(){
   try {
     var root = document.documentElement;
     var theme = localStorage.getItem("nextgen.theme");
+    var raw = localStorage.getItem("nextgen.publicConfig.v1");
+    var cfg = null;
+    try { cfg = raw ? JSON.parse(raw) : null; } catch (e) { cfg = null; }
+    var branding = cfg && cfg.branding;
+    var defaultTheme = branding && branding.default_theme;
+
     if (theme !== "day" && theme !== "night") {
-      theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "day" : "night";
+      if (defaultTheme === "day" || defaultTheme === "night") {
+        theme = defaultTheme;
+      } else {
+        // system (or unset): follow device
+        theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "day" : "night";
+      }
     }
     root.setAttribute("data-theme", theme);
     root.style.colorScheme = theme === "day" ? "light" : "dark";
 
-    var raw = localStorage.getItem("nextgen.publicConfig.v1");
-    if (!raw) return;
-    var cfg = JSON.parse(raw);
-    var branding = cfg && cfg.branding;
     if (!branding) return;
 
     var legacyGreen = { "#b8f000":1, "#a3e635":1, "#84cc16":1, "#bef264":1, "#d9f99d":1 };

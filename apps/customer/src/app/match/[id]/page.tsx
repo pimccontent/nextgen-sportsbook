@@ -22,10 +22,8 @@ export default function MatchPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { selectedIds, toggleSelection, selections, removeSelection } = useSlip();
-  const [fixture, setFixture] = React.useState<Fixture | undefined>(() =>
-    getFixture(id)
-  );
-  const [markets, setMarkets] = React.useState<Market[]>(() => getMarkets(id));
+  const [fixture, setFixture] = React.useState<Fixture | undefined>(undefined);
+  const [markets, setMarkets] = React.useState<Market[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [syncedAt, setSyncedAt] = React.useState<string | null>(null);
   const [nowMs, setNowMs] = React.useState(() => Date.now());
