@@ -127,6 +127,20 @@ fi
 ensure_packages
 ensure_docker
 
+sync_repo() {
+  local dir="$1"
+  if [[ ! -d "$dir/.git" ]]; then
+    return 1
+  fi
+  echo "Syncing $dir → origin/${BRANCH}"
+  git -C "$dir" remote set-url origin "$REPO_URL" 2>/dev/null || true
+  git -C "$dir" fetch --depth 1 origin "$BRANCH"
+  git -C "$dir" checkout -B "$BRANCH" "origin/$BRANCH"
+  git -C "$dir" reset --hard "origin/$BRANCH"
+  git -C "$dir" clean -fd
+  return 0
+}
+
 ROOT="$(resolve_root)"
 if [[ -z "$ROOT" ]]; then
   if ! need_cmd git; then
@@ -134,18 +148,17 @@ if [[ -z "$ROOT" ]]; then
     exit 1
   fi
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    echo "Updating existing clone at $INSTALL_DIR"
-    git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL" 2>/dev/null || true
-    git -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"
-    # Installer-owned checkout: discard local drift so VPS always matches GitHub.
-    git -C "$INSTALL_DIR" checkout -B "$BRANCH" "origin/$BRANCH"
-    git -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
-    git -C "$INSTALL_DIR" clean -fd
+    sync_repo "$INSTALL_DIR"
     ROOT="$INSTALL_DIR"
   else
     echo "Cloning $REPO_URL ($BRANCH) → $INSTALL_DIR"
     git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$INSTALL_DIR"
     ROOT="$INSTALL_DIR"
+  fi
+else
+  # curl|bash from inside an old checkout used to skip git sync — always refresh.
+  if [[ -d "$ROOT/.git" ]]; then
+    sync_repo "$ROOT" || true
   fi
 fi
 
