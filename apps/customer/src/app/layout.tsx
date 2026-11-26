@@ -2,17 +2,21 @@ import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { IBM_Plex_Mono, Manrope, Sora } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { BrandProvider } from "@/lib/brand-context";
 import { OperatorProvider } from "@/lib/operator-context";
 import { SlipProvider } from "@/lib/slip-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { CUSTOMER_BOOT_SCRIPT } from "@/lib/boot-script";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CustomerShell } from "@/components/CustomerShell";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { CustomerMessaging } from "@/components/CustomerMessaging";
+import { SupportChat } from "@/components/SupportChat";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -43,8 +47,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f4f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#090a0c" },
   ],
 };
 
@@ -70,6 +74,7 @@ export default function RootLayout({
           } as CSSProperties
         }
       >
+        <Script id="ng-boot" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: CUSTOMER_BOOT_SCRIPT }} />
         <ThemeProvider>
           <BrandProvider>
             <MaintenanceGate>
@@ -82,6 +87,8 @@ export default function RootLayout({
                     </Suspense>
                     <BottomNavigation />
                     <CustomerMessaging />
+                    <ActivityFeed />
+                    <SupportChat />
                   </SlipProvider>
                 </OperatorProvider>
               </AuthProvider>

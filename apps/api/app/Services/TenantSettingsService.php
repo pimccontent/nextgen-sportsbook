@@ -172,6 +172,29 @@ final class TenantSettingsService
             $branding['color_accent'] = '#F5A524';
         }
 
+        $defaults = \App\Support\TenantSettingsDefaults::all()['branding'];
+        $themes = is_array($branding['themes'] ?? null) ? $branding['themes'] : [];
+        foreach (['day', 'night'] as $mode) {
+            $base = is_array($defaults['themes'][$mode] ?? null) ? $defaults['themes'][$mode] : [];
+            $override = is_array($themes[$mode] ?? null) ? $themes[$mode] : [];
+            $merged = array_merge($base, $override);
+            foreach (['accent', 'chat_bubble_mine'] as $accentKey) {
+                $v = strtolower((string) ($merged[$accentKey] ?? ''));
+                if (in_array($v, ['#b8f000', '#a3e635', '#84cc16', '#bef264', '#d9f99d'], true)) {
+                    $merged[$accentKey] = '#F5A524';
+                }
+            }
+            $themes[$mode] = $merged;
+        }
+        $branding['themes'] = $themes;
+        // Keep legacy top-level colors in sync with day theme for older clients.
+        $day = $themes['day'];
+        $branding['color_accent'] = (string) ($day['accent'] ?? $branding['color_accent']);
+        $branding['color_background'] = (string) ($day['bg'] ?? $branding['color_background']);
+        $branding['color_surface'] = (string) ($day['surface'] ?? $branding['color_surface']);
+        $branding['color_text'] = (string) ($day['text'] ?? $branding['color_text']);
+        $branding['color_primary'] = (string) ($day['text'] ?? $branding['color_primary']);
+
         $branding['logo_url'] = $this->absoluteMediaUrl($branding['logo_url'] ?? null);
         $branding['favicon_url'] = $this->absoluteMediaUrl($branding['favicon_url'] ?? null);
 
@@ -260,7 +283,23 @@ final class TenantSettingsService
                         ? (string) $messaging['toast_tone']
                         : 'info',
                 ],
+                'activity' => [
+                    'enabled' => (bool) ($messaging['activity_enabled'] ?? false),
+                    'includeReal' => (bool) ($messaging['activity_include_real'] ?? true),
+                    'includeFake' => (bool) ($messaging['activity_include_fake'] ?? true),
+                    'intervalMs' => max(5000, min(120000, (int) ($messaging['activity_interval_ms'] ?? 10000))),
+                    'displayMs' => max(2000, min(20000, (int) ($messaging['activity_display_ms'] ?? 4500))),
+                    'position' => in_array(
+                        (string) ($messaging['activity_position'] ?? 'bottom_left'),
+                        ['bottom_left', 'bottom_center', 'bottom_right', 'top_left', 'top_center', 'top_right'],
+                        true
+                    )
+                        ? (string) $messaging['activity_position']
+                        : 'bottom_left',
+                    'illustrativeLabel' => (string) ($messaging['activity_illustrative_label'] ?? 'Illustrative'),
+                ],
             ],
+            'support' => app(\App\Services\SupportChatService::class)->config($tenant),
             'meta' => [
                 'mock' => $environment !== 'live',
                 'environment' => $environment,

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\PaymentIntent;
+use App\Models\Tenant;
 use App\Services\PaymentService;
 use App\Services\WalletService;
 use App\Services\WithdrawalService;
@@ -111,5 +113,52 @@ final class WalletController
             ],
             'wallet' => $this->wallets->payload($wallet->fresh()),
         ], 'Withdrawal submitted', 201);
+    }
+
+    public function withdrawals(Request $request): JsonResponse
+    {
+        $tenant = Tenant::default();
+        $rows = PaymentIntent::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $request->user()->id)
+            ->where('direction', 'withdrawal')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (PaymentIntent $p) => [
+                'id' => $p->id,
+                'status' => $p->status,
+                'amountMinor' => $p->amount_minor,
+                'currency' => $p->currency,
+                'reference' => $p->provider_reference,
+                'createdAt' => $p->created_at?->toIso8601String(),
+                'completedAt' => $p->completed_at?->toIso8601String(),
+            ]);
+
+        return ApiResponse::success(['withdrawals' => $rows->values()]);
+    }
+
+    public function deposits(Request $request): JsonResponse
+    {
+        $tenant = Tenant::default();
+        $rows = PaymentIntent::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $request->user()->id)
+            ->where('direction', 'deposit')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (PaymentIntent $p) => [
+                'id' => $p->id,
+                'status' => $p->status,
+                'amountMinor' => $p->amount_minor,
+                'currency' => $p->currency,
+                'provider' => $p->provider,
+                'reference' => $p->provider_reference,
+                'createdAt' => $p->created_at?->toIso8601String(),
+                'completedAt' => $p->completed_at?->toIso8601String(),
+            ]);
+
+        return ApiResponse::success(['deposits' => $rows->values()]);
     }
 }

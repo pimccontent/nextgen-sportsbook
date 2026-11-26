@@ -6,20 +6,12 @@
 
 body {
   @apply font-body antialiased;
-  background: var(--ng-bg) !important;
+  background: transparent !important;
   color: var(--ng-text);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-.ng-atmosphere {
-  background:
-    radial-gradient(
-      ellipse 90% 55% at 50% -15%,
-      color-mix(in srgb, var(--ng-accent) 18%, transparent),
-      transparent 70%
-    ),
-    var(--ng-bg) !important;
-}
+/* Customer atmosphere owned by design-system .ng-atmosphere — do not overlay accent glows. */
 
 .cx-page {
   @apply px-3 pb-4 pt-3 sm:px-4;
@@ -141,7 +133,7 @@ body {
 .slip-won {
   border-color: color-mix(in srgb, var(--ng-win) 55%, var(--ng-border));
   background:
-    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--ng-win) 22%, transparent), transparent 55%),
+    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--ng-win) 18%, transparent), transparent 55%),
     var(--ng-surface);
   animation: slip-pop 0.45s ease-out;
 }
@@ -149,14 +141,14 @@ body {
 .slip-lost {
   border-color: color-mix(in srgb, var(--ng-loss) 65%, var(--ng-border));
   background:
-    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--ng-loss) 18%, transparent), transparent 55%),
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--ng-loss) 14%, transparent), transparent 55%),
     var(--ng-surface);
 }
 
 @keyframes slip-pop {
   0% {
     transform: scale(0.98);
-    filter: brightness(1.15);
+    filter: brightness(1.12);
   }
   100% {
     transform: scale(1);

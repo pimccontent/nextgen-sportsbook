@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NextGen Sportsbook — Live Server Installation</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    :root {
+      --ink: #12141a;
+      --muted: #5c6570;
+      --line: #d8dde3;
+      --accent: #c47a12;
+      --panel: #f6f7f9;
+      --ok: #1f6b3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 11pt/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; line-height: 1.2; }
+    h1 { font-size: 22pt; margin: 0 0 6px; }
+    h2 {
+      font-size: 14pt;
+      margin: 22px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 1.5px solid var(--ink);
+    }
+    h3 { font-size: 11.5pt; margin: 14px 0 6px; color: var(--accent); }
+    p { margin: 0 0 8px; }
+    .muted { color: var(--muted); }
+    .hero {
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, #fff 0%, #f3f0ea 100%);
+      padding: 18px 18px 14px;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-block;
+      font: 700 8.5pt/1 "Segoe UI", sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .meta { font-size: 9.5pt; color: var(--muted); }
+    ol.steps { margin: 0; padding-left: 1.3em; }
+    ol.steps > li { margin: 0 0 12px; padding-left: 4px; }
+    ol.steps > li::marker { font-weight: 700; color: var(--accent); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 8px 0 12px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--panel); font-size: 9pt; text-transform: uppercase; letter-spacing: 0.04em; }
+    code, pre {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 9pt;
+    }
+    code {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    pre {
+      background: #151820;
+      color: #e8edf2;
+      padding: 10px 12px;
+      border-radius: 6px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      margin: 6px 0 10px;
+    }
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: var(--panel);
+      padding: 8px 10px;
+      margin: 8px 0 12px;
+      font-size: 10pt;
+    }
+    .warn {
+      border-left-color: #b45309;
+      background: #fff7ed;
+    }
+    .ok {
+      border-left-color: var(--ok);
+      background: #f0faf3;
+    }
+    ul.compact { margin: 4px 0 8px; padding-left: 1.2em; }
+    ul.compact li { margin: 2px 0; }
+    .footer {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      font-size: 9pt;
+      color: var(--muted);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0 12px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      padding: 10px;
+      background: #fff;
+    }
+    .card strong { display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">NextGen Sportsbook</div>
+    <h1>Live Server Installation Guide</h1>
+    <p class="meta">Single-VPS production install · Path URL layout · Docker + Caddy HTTPS</p>
+    <p class="meta">Updated: 26 November 2026 · Sandbox / mock money until licensing go-live is approved</p>
+  </div>
+
+  <h2>1. What you need</h2>
+  <ul class="compact">
+    <li>A Linux VPS: <strong>Ubuntu 22.04 or 24.04</strong>, root SSH access</li>
+    <li><strong>2 GB RAM minimum</strong> (4 GB recommended for first image build)</li>
+    <li>A domain name you control (DNS panel access)</li>
+    <li>An email address for Let’s Encrypt certificates</li>
+    <li>Not for classic shared hosting / cPanel PHP-only</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>Compliance:</strong> This install runs in sandbox / test mode. Do not process real-money bets until licensing, payments, data rights, and responsible-gambling requirements are independently reviewed and approved.
+  </div>
+
+  <h2>2. URL map (recommended)</h2>
+  <table>
+    <thead>
+      <tr><th>Surface</th><th>URL</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Customer</td><td><code>https://YOUR_DOMAIN/</code></td><td>Main brand site</td></tr>
+      <tr><td>Agent</td><td><code>https://YOUR_DOMAIN/agent</code></td><td>Folder on the same domain</td></tr>
+      <tr><td>API</td><td><code>https://YOUR_DOMAIN/api/v1/…</code></td><td>Same host as customer</td></tr>
+      <tr><td>Admin</td><td><code>https://admin.YOUR_DOMAIN</code></td><td>Staff subdomain only</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. Step-by-step installation</h2>
+  <ol class="steps">
+    <li>
+      <strong>Create the VPS</strong><br />
+      Provision Ubuntu 22.04/24.04. Note the public IPv4 address. Confirm you can SSH as root (or a user with sudo).
+    </li>
+    <li>
+      <strong>Add DNS records (do this first)</strong><br />
+      In your DNS provider, create these <strong>A</strong> records pointing to the VPS IP:
+      <table>
+        <thead><tr><th>Hostname</th><th>Type</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td><code>YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
+          <tr><td><code>admin.YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
+        </tbody>
+      </table>
+      Optional: <code>www.YOUR_DOMAIN</code> redirects to the apex automatically via Caddy.
+      <div class="callout">Wait for DNS to propagate (often a few minutes). Certificates fail if DNS is wrong.</div>
+    </li>
+    <li>
+      <strong>(Optional but recommended on 1–2 GB VPS) Add swap</strong>
+      <pre>sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile</pre>
+    </li>
+    <li>
+      <strong>SSH into the VPS as root</strong>
+      <pre>ssh root@YOUR_VPS_IP</pre>
+    </li>
+    <li>
+      <strong>Run the guided installer (smoothest)</strong>
+      <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --wizard --install-docker</pre>
+      The wizard will ask for:
+      <ul class="compact">
+        <li>Apex domain (example: <code>bet.example.com</code>)</li>
+        <li>Let’s Encrypt email</li>
+        <li>URL layout — choose <code>path</code> (recommended)</li>
+        <li>Whether to use prebuilt images if available</li>
+      </ul>
+      It then checks DNS, installs Docker if needed, opens firewall ports <strong>22 / 80 / 443</strong>, and starts the stack.
+    </li>
+    <li>
+      <strong>Or use the non-interactive one-liner</strong>
+      <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker</pre>
+      Replace <code>YOUR_DOMAIN</code> and <code>YOU@EMAIL.com</code> with real values.
+    </li>
+    <li>
+      <strong>Wait for the first build</strong><br />
+      The first run can take several minutes while Docker images build. When finished you should see Customer / Agent / Admin / API URLs printed in the terminal.
+    </li>
+    <li>
+      <strong>Verify HTTPS and health</strong>
+      <ul class="compact">
+        <li>Open <code>https://YOUR_DOMAIN/</code> — customer app</li>
+        <li>Open <code>https://YOUR_DOMAIN/agent</code> — agent portal</li>
+        <li>Open <code>https://admin.YOUR_DOMAIN</code> — admin portal</li>
+        <li>Open <code>https://YOUR_DOMAIN/api/v1/health</code> — API should return healthy JSON</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Sign in to Admin</strong><br />
+      Demo Super Admin (seeded when the database has zero users):
+      <div class="grid-2">
+        <div class="card"><strong>Email</strong>admin@nextgen.local</div>
+        <div class="card"><strong>Password</strong>Password1!</div>
+      </div>
+      Change this password immediately after first login.
+    </li>
+    <li>
+      <strong>Confirm domain layout in Admin</strong><br />
+      Go to <strong>Settings → Domain &amp; deploy</strong> to see portal URLs, required DNS hosts, and the update command.
+    </li>
+  </ol>
+
+  <h2>4. What the installer does</h2>
+  <ol class="compact">
+    <li>Installs packages (<code>curl</code>, <code>git</code>, <code>ufw</code>, …)</li>
+    <li>Installs Docker Engine + Compose v2</li>
+    <li>Clones the repo into <code>~/nextgen-sportsbook</code></li>
+    <li>Opens firewall ports 22 / 80 / 443</li>
+    <li>Checks DNS for apex + <code>admin.</code></li>
+    <li>Writes <code>.env.vps</code> with HTTPS URLs and CORS</li>
+    <li>Starts Postgres, Redis, API, Customer, Admin, Agent, and Caddy</li>
+    <li>Caddy obtains Let’s Encrypt certificates for the two hostnames</li>
+  </ol>
+
+  <h2>5. Day-2 operations</h2>
+  <h3>Update the stack</h3>
+  <pre>cd ~/nextgen-sportsbook
+bash scripts/update-vps.sh
+# optional:
+bash scripts/update-vps.sh --pull-git
+bash scripts/update-vps.sh --build</pre>
+
+  <h3>Useful commands</h3>
+  <pre>bash scripts/check-dns.sh --domain=YOUR_DOMAIN
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https ps
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs -f api</pre>
+
+  <h3>If you change public URLs / Next env</h3>
+  <pre>docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https up -d --build customer admin agent</pre>
+
+  <h2>6. Alternatives</h2>
+  <h3>IP-only (no domain / no HTTPS) — testing only</h3>
+  <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --install-docker --host=YOUR_VPS_IP</pre>
+  <p class="muted">Serves customer :3000, admin :3001, agent :3002, API :8081 over HTTP.</p>
+
+  <h3>Legacy four-host layout</h3>
+  <p>Only if you need separate <code>agent.</code> and <code>api.</code> subdomains:</p>
+  <pre>bash scripts/install-vps.sh --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --layout=hosts --install-docker</pre>
+  <p>Also requires A records for <code>agent.YOUR_DOMAIN</code> and <code>api.YOUR_DOMAIN</code>.</p>
+
+  <h2>7. Quick checklist</h2>
+  <table>
+    <thead><tr><th>Check</th><th>Done?</th></tr></thead>
+    <tbody>
+      <tr><td>VPS Ubuntu 22.04/24.04 with root SSH</td><td>☐</td></tr>
+      <tr><td>DNS A: apex → VPS IP</td><td>☐</td></tr>
+      <tr><td>DNS A: admin.apex → VPS IP</td><td>☐</td></tr>
+      <tr><td>Swap added on small VPS</td><td>☐</td></tr>
+      <tr><td>Installer / wizard completed</td><td>☐</td></tr>
+      <tr><td>Customer HTTPS opens</td><td>☐</td></tr>
+      <tr><td>Agent HTTPS opens at /agent</td><td>☐</td></tr>
+      <tr><td>Admin HTTPS opens</td><td>☐</td></tr>
+      <tr><td>API /api/v1/health OK</td><td>☐</td></tr>
+      <tr><td>Admin password changed from demo</td><td>☐</td></tr>
+      <tr><td>Still sandbox until licensing approved</td><td>☐</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout ok">
+    <strong>Primary path:</strong> 2 DNS records → wizard install → open Admin at <code>https://admin.YOUR_DOMAIN</code> → Settings → Domain &amp; deploy.
+  </div>
+
+  <div class="footer">
+    NextGen Sportsbook · Live Server Installation Guide · Source docs: docs/architecture/VPS_DEPLOY.md and URL_MAP.md<br />
+    Repository: https://github.com/pimccontent/nextgen-sportsbook
+  </div>
+</body>
+</html>

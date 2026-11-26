@@ -1,11 +1,33 @@
-# Generated / templated by scripts/vps-up.sh — DOMAIN and ACME_EMAIL come from container env.
+# Path layout (default): apex hosts customer + /agent + /api (+ /storage).
+# Admin stays on admin.{$DOMAIN}.
+# Legacy four-host layout: use Caddyfile.vps.hosts instead (URL_LAYOUT=hosts).
 {
 	email {$ACME_EMAIL}
 }
 
 {$DOMAIN} {
 	encode gzip
-	reverse_proxy customer:3000
+
+	# Laravel API + public storage (APP_URL = https://DOMAIN)
+	handle /api* {
+		reverse_proxy api:8080
+	}
+	handle /storage* {
+		reverse_proxy api:8080
+	}
+	handle /up {
+		reverse_proxy api:8080
+	}
+
+	# Agent portal (Next basePath=/agent)
+	handle /agent* {
+		reverse_proxy agent:3000
+	}
+
+	# Customer sportsbook
+	handle {
+		reverse_proxy customer:3000
+	}
 }
 
 admin.{$DOMAIN} {
@@ -13,12 +35,6 @@ admin.{$DOMAIN} {
 	reverse_proxy admin:3000
 }
 
-agent.{$DOMAIN} {
-	encode gzip
-	reverse_proxy agent:3000
-}
-
-api.{$DOMAIN} {
-	encode gzip
-	reverse_proxy api:8080
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
 }

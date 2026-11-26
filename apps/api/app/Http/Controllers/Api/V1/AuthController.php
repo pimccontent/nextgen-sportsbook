@@ -312,7 +312,7 @@ final class AuthController
 
     private function userPayload(User $user): array
     {
-        return [
+        $payload = [
             'id' => $user->id,
             'name' => $user->name,
             'phone' => $user->phone,
@@ -331,5 +331,13 @@ final class AuthController
                 'status' => $user->agent->status,
             ] : null,
         ];
+
+        if ($user->role->isStaff()) {
+            $payload['is_super_admin'] = \App\Support\AdminPermission::isSuperAdmin($user);
+            $payload['permissions'] = \App\Support\AdminPermission::effective($user);
+            $payload['last_login_at'] = $user->last_login_at?->toIso8601String();
+        }
+
+        return $payload;
     }
 }

@@ -231,6 +231,16 @@ final class FixturesAdminController
         ], "Removed {$deleted} fixture(s)");
     }
 
+    public function bulkPublish(Request $request): JsonResponse
+    {
+        return $this->bulkSetPublication($request, PublicationState::Published, 'fixtures.bulk_publish');
+    }
+
+    public function bulkSuspend(Request $request): JsonResponse
+    {
+        return $this->bulkSetPublication($request, PublicationState::Suspended, 'fixtures.bulk_suspend');
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -306,7 +316,7 @@ final class FixturesAdminController
                     $sel->save();
                 }
             }
-            foreach (['double_chance', 'btts', 'over_under'] as $type) {
+            foreach (['double_chance', 'btts', 'over_under', 'correct_score'] as $type) {
                 $this->markets->addMarket($event, $type, $type === 'over_under' ? ['line' => 2.5] : null);
             }
 
@@ -641,7 +651,7 @@ final class FixturesAdminController
         }
 
         $data = $request->validate([
-            'type' => ['required', 'in:1x2,double_chance,btts,over_under'],
+            'type' => ['required', 'in:1x2,double_chance,btts,over_under,correct_score'],
             'line' => ['nullable', 'numeric', 'min:0.5', 'max:20'],
             'visible_to_customer' => ['nullable', 'boolean'],
         ]);
@@ -668,6 +678,50 @@ final class FixturesAdminController
         return ApiResponse::success([
             'fixture' => $this->detail($event->fresh(['competition', 'homeTeam', 'awayTeam', 'markets.selections'])),
         ], 'Market added', 201);
+    }
+
+    public function addMarketSelection(Request $request, string $id, string $marketId): JsonResponse
+    {
+        $event = $this->find($id);
+        if (! $event) {
+            return ApiResponse::error('Fixture not found', 404);
+        }
+        $market = $event->markets->firstWhere('public_id', $marketId);
+        if (! $market) {
+            return ApiResponse::error('Market not found', 404);
+        }
+
+        $data = $request->validate([
+            'home_goals' => ['required', 'integer', 'min:0', 'max:20'],
+            'away_goals' => ['required', 'integer', 'min:0', 'max:20'],
+            'decimal_odds' => ['required', 'numeric', 'min:1.01', 'max:500'],
+        ]);
+
+        try {
+            $market->setRelation('event', $event);
+            $this->markets->addCorrectScoreSelection(
+                $market,
+                (int) $data['home_goals'],
+                (int) $data['away_goals'],
+                (float) $data['decimal_odds']
+            );
+        } catch (InvalidArgumentException $e) {
+            return ApiResponse::error($e->getMessage(), 422);
+        }
+
+        $event->admin_locked = true;
+        $event->save();
+
+        $this->audit->log($request->user(), 'fixture.market_selection_add', $request, [
+            'public_id' => $id,
+            'market_id' => $marketId,
+            'home_goals' => $data['home_goals'],
+            'away_goals' => $data['away_goals'],
+        ], SportEvent::class, $event->id);
+
+        return ApiResponse::success([
+            'fixture' => $this->detail($event->fresh(['competition', 'homeTeam', 'awayTeam', 'markets.selections'])),
+        ], 'Custom score added', 201);
     }
 
     public function updateMarket(Request $request, string $id, string $marketId): JsonResponse
@@ -805,6 +859,61 @@ final class FixturesAdminController
         return ApiResponse::success([
             'fixture' => $this->detail($event->fresh(['competition', 'homeTeam', 'awayTeam', 'markets.selections'])),
         ], 'Fixture removed from catalogue');
+    }
+
+    private function bulkSetPublication(Request $request, PublicationState $state, string $auditAction): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'string', 'max:80'],
+        ]);
+
+        $updated = 0;
+        $skipped = [];
+
+        foreach ($data['ids'] as $publicId) {
+            $event = $this->find($publicId);
+            if (! $event) {
+                $skipped[] = ['id' => $publicId, 'reason' => 'not_found'];
+                continue;
+            }
+
+            if ($event->status === EventStatus::Cancelled) {
+                $skipped[] = ['id' => $publicId, 'reason' => 'cancelled'];
+                continue;
+            }
+
+            if ($event->publication_state === $state) {
+                $skipped[] = ['id' => $publicId, 'reason' => 'already_'.$state->value];
+                continue;
+            }
+
+            $event->publication_state = $state;
+            $event->admin_locked = true;
+            if ($state === PublicationState::Published) {
+                $event->published_at = now();
+                $event->suspended_at = null;
+            }
+            if ($state === PublicationState::Suspended) {
+                $event->suspended_at = now();
+            }
+            $event->save();
+            $updated++;
+        }
+
+        $this->audit->log($request->user(), $auditAction, $request, [
+            'updated' => $updated,
+            'skipped' => count($skipped),
+            'publication_state' => $state->value,
+        ]);
+
+        $verb = $state === PublicationState::Published ? 'Published' : 'Suspended';
+
+        return ApiResponse::success([
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'publication_state' => $state->value,
+        ], "{$verb} {$updated} fixture(s)");
     }
 
     private function find(string $id): ?SportEvent

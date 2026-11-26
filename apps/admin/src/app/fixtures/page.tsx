@@ -75,6 +75,7 @@ export default function FixturesPage() {
   const [busy, setBusy] = React.useState(false);
   const [actionId, setActionId] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const selectAllRef = React.useRef<HTMLInputElement>(null);
   const [q, setQ] = React.useState("");
   const [qDebounced, setQDebounced] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
@@ -107,6 +108,10 @@ export default function FixturesPage() {
     setPage(1);
   }, [qDebounced, statusFilter, pubFilter, competitionId, country, sort, dir, perPage]);
 
+  React.useEffect(() => {
+    setSelected(new Set());
+  }, [qDebounced, statusFilter, pubFilter, competitionId, country]);
+
   const load = React.useCallback(async () => {
     if (!token) return;
     const params = new URLSearchParams();
@@ -129,10 +134,6 @@ export default function FixturesPage() {
     setRows(data.fixtures);
     setMeta(data.meta);
     if (data.filters) setFilterOpts(data.filters);
-    setSelected((prev) => {
-      const ids = new Set(data.fixtures.map((f) => f.id));
-      return new Set([...prev].filter((id) => ids.has(id)));
-    });
   }, [
     token,
     page,
@@ -226,26 +227,89 @@ export default function FixturesPage() {
     }
   };
 
+  const selectedIds = React.useMemo(() => [...selected], [selected]);
+
+  const runBulkChunks = async <T extends { skipped: Array<{ id: string; reason: string }> }>(
+    path: string,
+    ids: string[]
+  ): Promise<{ chunks: T[]; skipped: Array<{ id: string; reason: string }> }> => {
+    const chunks: T[] = [];
+    const skipped: Array<{ id: string; reason: string }> = [];
+    for (let i = 0; i < ids.length; i += 100) {
+      const slice = ids.slice(i, i + 100);
+      const data = await fixturesAdminFetch<T>(token!, path, {
+        method: "POST",
+        body: JSON.stringify({ ids: slice }),
+      });
+      chunks.push(data);
+      skipped.push(...(data.skipped ?? []));
+    }
+    return { chunks, skipped };
+  };
+
   const confirmBulkDelete = async () => {
     if (!token || selected.size === 0) return;
     setBusy(true);
     setError(null);
     try {
-      const data = await fixturesAdminFetch<{
+      const { chunks, skipped } = await runBulkChunks<{
         deleted: number;
         skipped: Array<{ id: string; reason: string }>;
-      }>(token, "/admin/fixtures/bulk-delete", {
-        method: "POST",
-        body: JSON.stringify({ ids: [...selected] }),
-      });
+      }>("/admin/fixtures/bulk-delete", selectedIds);
+      const deleted = chunks.reduce((n, c) => n + (c.deleted ?? 0), 0);
       setBulkDeleteOpen(false);
       setSelected(new Set());
       setStatus(
-        `Removed ${data.deleted}${data.skipped.length ? ` · skipped ${data.skipped.length}` : ""}`
+        `Removed ${deleted}${skipped.length ? ` · skipped ${skipped.length}` : ""}`
       );
+      if (skipped.length) {
+        setError(
+          `Skipped: ${skipped
+            .slice(0, 5)
+            .map((s) => `${s.id} (${s.reason})`)
+            .join(", ")}${skipped.length > 5 ? "…" : ""}`
+        );
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Bulk delete failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bulkPublication = async (action: "publish" | "suspend") => {
+    if (!token || selected.size === 0) return;
+    setBusy(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const path =
+        action === "publish"
+          ? "/admin/fixtures/bulk-publish"
+          : "/admin/fixtures/bulk-suspend";
+      const { chunks, skipped } = await runBulkChunks<{
+        updated: number;
+        skipped: Array<{ id: string; reason: string }>;
+      }>(path, selectedIds);
+      const updated = chunks.reduce((n, c) => n + (c.updated ?? 0), 0);
+      setSelected(new Set());
+      setStatus(
+        `${action === "publish" ? "Published" : "Suspended"} ${updated}${
+          skipped.length ? ` · skipped ${skipped.length}` : ""
+        }`
+      );
+      if (skipped.length) {
+        setError(
+          `Skipped: ${skipped
+            .slice(0, 5)
+            .map((s) => `${s.id} (${s.reason})`)
+            .join(", ")}${skipped.length > 5 ? "…" : ""}`
+        );
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Bulk ${action} failed`);
     } finally {
       setBusy(false);
     }
@@ -280,12 +344,24 @@ export default function FixturesPage() {
   };
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
-  const toggleAll = () => {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(rows.map((r) => r.id)));
+  const someSelected = rows.some((r) => selected.has(r.id));
+
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected;
     }
+  }, [someSelected, allSelected]);
+
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        rows.forEach((r) => next.delete(r.id));
+      } else {
+        rows.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
   };
 
   const toggleOne = (id: string) => {
@@ -452,8 +528,38 @@ export default function FixturesPage() {
 
           <button
             type="button"
+            className={`${iconBtn} text-[var(--status-healthy-fg)]`}
+            disabled={selected.size === 0 || busy}
+            title={
+              selected.size
+                ? `Publish selected (${selected.size})`
+                : "Select fixtures to publish"
+            }
+            aria-label="Publish selected"
+            onClick={() => void bulkPublication("publish")}
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            type="button"
+            className={iconBtn}
+            disabled={selected.size === 0 || busy}
+            title={
+              selected.size
+                ? `Suspend selected (${selected.size})`
+                : "Select fixtures to suspend"
+            }
+            aria-label="Suspend selected"
+            onClick={() => void bulkPublication("suspend")}
+          >
+            <Ban className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            type="button"
             className={`relative ${iconBtn} border-[var(--status-destructive-fg)]/30 text-[var(--status-destructive-fg)]`}
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || busy}
             title={
               selected.size
                 ? `Delete selected (${selected.size})`
@@ -478,6 +584,7 @@ export default function FixturesPage() {
             <tr>
               <th className="w-10">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}

@@ -6,6 +6,7 @@ import { formatGhs } from "@nextgen/mock-data";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
+import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function SiteHeader() {
@@ -70,6 +71,7 @@ export function SiteHeader() {
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
+          <NotificationBell />
           {user && availableMinor != null ? (
             <Link
               href="/wallet"

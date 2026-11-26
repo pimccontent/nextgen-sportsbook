@@ -91,6 +91,84 @@ final class PaymentService
     }
 
     /**
+     * Admin-initiated cash credit (sandbox/test only). Creates a completed payment_intent
+     * and posts a balanced deposit journal.
+     */
+    public function adminManualDeposit(
+        User $customer,
+        int $amountMinor,
+        string $idempotencyKey,
+        string $reason,
+        ?User $admin = null
+    ): PaymentIntent {
+        $tenant = Tenant::default();
+        if (! $this->sandboxMockAllowed($tenant)) {
+            throw new RuntimeException('Manual deposits are only available in sandbox/test mode.');
+        }
+
+        $walletRules = $this->settings->getGroup($tenant, 'wallet')['payload'];
+        $min = (int) $walletRules['min_deposit_minor'];
+        $max = (int) $walletRules['max_deposit_minor'];
+        if ($amountMinor < $min || $amountMinor > $max) {
+            $minGhs = number_format($min / 100, 2, '.', '');
+            $maxGhs = number_format($max / 100, 2, '.', '');
+            throw new InvalidArgumentException("Deposit must be between GHS {$minGhs} and GHS {$maxGhs}.");
+        }
+
+        $existing = PaymentIntent::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        return DB::transaction(function () use ($customer, $amountMinor, $idempotencyKey, $reason, $admin, $tenant) {
+            $wallet = $this->wallets->forUser($customer);
+            $reference = 'MAN_'.Str::upper(Str::random(14));
+            $intent = PaymentIntent::query()->create([
+                'tenant_id' => $tenant->id,
+                'user_id' => $customer->id,
+                'wallet_id' => $wallet->id,
+                'provider' => 'manual',
+                'direction' => 'deposit',
+                'status' => 'pending',
+                'amount_minor' => $amountMinor,
+                'currency' => 'GHS',
+                'idempotency_key' => $idempotencyKey,
+                'provider_reference' => $reference,
+                'provider_payload' => [
+                    'manual' => true,
+                    'reason' => $reason,
+                    'admin_id' => $admin?->id,
+                ],
+            ]);
+
+            $this->wallets->creditDeposit(
+                $tenant,
+                $wallet,
+                $amountMinor,
+                'deposit:'.$idempotencyKey,
+                $intent->id
+            );
+
+            $rules = $this->settings->getGroup($tenant, 'commissions')['payload'];
+            $defaultCommissionable = (bool) ($rules['deposit_commissionable_default'] ?? true);
+
+            $intent->status = 'completed';
+            $intent->completed_at = now();
+            $intent->commissionable = $defaultCommissionable;
+            $intent->commission_decided_at = now();
+            $intent->save();
+
+            app(BonusService::class)->awardDepositBonus($intent);
+            $this->commissions->accrueOnDeposit($intent);
+
+            return $intent->fresh(['user', 'commissionEntry']);
+        });
+    }
+
+    /**
      * Provider webhook completion (server-side only).
      */
     public function completeProviderDeposit(string $reference, ?int $providerAmountMinor = null): PaymentIntent

@@ -4,29 +4,15 @@ import * as React from "react";
 import { useBrand } from "@/lib/brand-context";
 
 export function MaintenanceGate({ children }: { children: React.ReactNode }) {
-  const { config, loading } = useBrand();
+  const { config } = useBrand();
   const ops = config?.operations;
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#0a0a0a] px-4 text-center">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-[#F5A524]/40" />
-        <p className="text-sm font-medium text-[#f5f5f5]">Loading sportsbook…</p>
-      </div>
-    );
-  }
-
+  // Do not swap the whole tree for a loading shell — that mismatched SSR
+  // (no localStorage) vs client (cached config) and caused hydration errors.
+  // Boot script already applies cached theme/branding before paint.
   if (ops?.maintenance_enabled) {
     return (
       <div className="ng-atmosphere relative flex min-h-screen items-center justify-center px-4 py-16">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--ng-accent) 35%, transparent), transparent 70%)",
-          }}
-        />
         <div className="relative w-full max-w-lg text-center">
           <p className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[var(--ng-accent)]">
             {config?.branding.display_name ?? "NextGen"}
@@ -49,8 +35,6 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Never show a "Live environment" strip on the customer app (professional UX).
-  // Sandbox banner remains optional and admin-controlled.
   return (
     <>
       {ops?.show_environment_banner && ops.environment === "sandbox" ? (

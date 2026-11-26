@@ -2,6 +2,15 @@
 
 import * as React from "react";
 import { api } from "@/lib/api";
+import {
+  applyLegacyAccent,
+  applyThemePalette,
+  resolveAccent,
+  type BrandThemes,
+} from "@/lib/brand-colors";
+import { useTheme, type ThemeMode } from "@/lib/theme-context";
+
+export const PUBLIC_CONFIG_CACHE_KEY = "nextgen.publicConfig.v1";
 
 export type PublicConfig = {
   tenant: { slug: string; name: string };
@@ -12,6 +21,9 @@ export type PublicConfig = {
     favicon_url: string | null;
     support_email: string;
     support_phone: string;
+    support_chat_enabled?: boolean;
+    support_chat_url?: string | null;
+    support_chat_label?: string;
     color_primary: string;
     color_accent: string;
     color_background: string;
@@ -19,7 +31,9 @@ export type PublicConfig = {
     color_text: string;
     font_display: string;
     font_body: string;
+    themes?: BrandThemes;
   };
+  support?: import("@/lib/support-chat").SupportConfig;
   locale: {
     currency: string;
     minor_unit: string;
@@ -107,6 +121,22 @@ export type PublicConfig = {
       message: string;
       tone: "info" | "success" | "warning" | string;
     };
+    activity?: {
+      enabled: boolean;
+      includeReal?: boolean;
+      includeFake?: boolean;
+      intervalMs?: number;
+      displayMs?: number;
+      position?:
+        | "bottom_left"
+        | "bottom_center"
+        | "bottom_right"
+        | "top_left"
+        | "top_center"
+        | "top_right"
+        | string;
+      illustrativeLabel?: string;
+    };
   };
   meta?: {
     mock?: boolean;
@@ -126,24 +156,13 @@ const BrandContext = React.createContext<BrandContextValue>({
   loading: true,
 });
 
-const GOLDEN_ORANGE = "#F5A524";
-const LEGACY_APPLE_GREEN = new Set(
-  ["#b8f000", "#a3e635", "#84cc16", "#bef264", "#d9f99d"].map((c) => c.toLowerCase())
-);
-
-function resolveAccent(raw?: string | null): string {
-  if (!raw) return GOLDEN_ORANGE;
-  const normalized = raw.trim().toLowerCase();
-  if (LEGACY_APPLE_GREEN.has(normalized)) return GOLDEN_ORANGE;
-  return raw.trim();
-}
-
-function applyBranding(branding: PublicConfig["branding"]) {
-  // Day/night theme owns surfaces; accent is golden orange (never legacy lime).
-  const root = document.documentElement;
-  const accent = resolveAccent(branding.color_accent);
-  root.style.setProperty("--ng-accent", accent);
-  root.style.setProperty("--ng-focus", accent);
+function applyBranding(branding: PublicConfig["branding"], theme: ThemeMode) {
+  const palette = branding.themes?.[theme];
+  if (palette && Object.keys(palette).length > 0) {
+    applyThemePalette(palette);
+  } else {
+    applyLegacyAccent(branding.color_accent);
+  }
   document.title = `${branding.display_name} Sportsbook`;
   if (branding.favicon_url) {
     let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
@@ -156,27 +175,62 @@ function applyBranding(branding: PublicConfig["branding"]) {
   }
 }
 
+function readCachedConfig(): PublicConfig | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PUBLIC_CONFIG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PublicConfig;
+    if (!parsed?.branding?.display_name) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedConfig(data: PublicConfig) {
+  try {
+    window.localStorage.setItem(PUBLIC_CONFIG_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // quota / private mode
+  }
+}
+
+function readBootTheme(): ThemeMode {
+  if (typeof document === "undefined") return "night";
+  const attr = document.documentElement.getAttribute("data-theme");
+  return attr === "day" || attr === "night" ? attr : "night";
+}
+
 export function BrandProvider({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  // SSR and the first client render must match — never read localStorage in useState.
   const [config, setConfig] = React.useState<PublicConfig | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    const cached = readCachedConfig();
+    if (cached) {
+      applyBranding(cached.branding, theme || readBootTheme());
+      setConfig(cached);
+      setLoading(false);
+    }
+
     let cancelled = false;
     async function load(isInitial = false) {
       try {
         const data = await api.publicConfig();
         if (cancelled) return;
+        writeCachedConfig(data);
         setConfig(data);
-        applyBranding(data.branding);
+        applyBranding(data.branding, theme || readBootTheme());
       } catch {
-        // Never block the app on config failure — render with defaults.
-        if (!cancelled && isInitial) setConfig(null);
+        if (!cancelled && isInitial && !cached) setConfig(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     void load(true);
-    // Hard escape hatch: never leave the gate on "Loading…" forever.
     const failSafe = window.setTimeout(() => {
       if (!cancelled) setLoading(false);
     }, 8_000);
@@ -186,7 +240,13 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       window.clearInterval(id);
       window.clearTimeout(failSafe);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial fetch once; theme reapplied below
   }, []);
+
+  React.useEffect(() => {
+    if (!config?.branding) return;
+    applyBranding(config.branding, theme);
+  }, [theme, config]);
 
   return (
     <BrandContext.Provider value={{ config, loading }}>
@@ -198,3 +258,5 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 export function useBrand() {
   return React.useContext(BrandContext);
 }
+
+export { resolveAccent };

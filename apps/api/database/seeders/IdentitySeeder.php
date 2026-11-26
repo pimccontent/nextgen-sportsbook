@@ -73,6 +73,7 @@ class IdentitySeeder extends Seeder
                 'phone' => null,
                 'password' => 'Password1!',
                 'role' => UserRole::SuperAdmin,
+                'admin_permissions' => null,
                 'status' => UserStatus::Active,
                 'two_factor_enabled' => true,
             ]
@@ -81,6 +82,28 @@ class IdentitySeeder extends Seeder
             ['user_id' => $admin->id],
             [
                 'display_name' => 'Super Administrator',
+                'country_code' => 'GH',
+                'preferred_currency' => 'GHS',
+            ]
+        );
+
+        $staff = User::query()->updateOrCreate(
+            ['email' => 'staff@nextgen.local'],
+            [
+                'tenant_id' => $tenantId,
+                'name' => 'Demo Staff',
+                'phone' => null,
+                'password' => 'Password1!',
+                'role' => UserRole::Admin,
+                'admin_permissions' => ['dashboard', 'support', 'customers', 'deposits'],
+                'status' => UserStatus::Active,
+                'two_factor_enabled' => false,
+            ]
+        );
+        Profile::query()->updateOrCreate(
+            ['user_id' => $staff->id],
+            [
+                'display_name' => 'Demo Staff',
                 'country_code' => 'GH',
                 'preferred_currency' => 'GHS',
             ]

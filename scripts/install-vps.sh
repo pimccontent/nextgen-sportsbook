@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # Full one-command VPS install for NextGen Sportsbook (Docker + optional HTTPS domain).
 #
-# Public repo one-liner (Ubuntu/Debian VPS as root):
+# Recommended (guided):
+#   curl -fsSL …/scripts/install-vps.sh | bash -s -- --wizard --install-docker
 #
-#   curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com
+# Non-interactive HTTPS (path layout — 2 DNS records):
+#   curl -fsSL …/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker
 #
-# Examples:
-#   bash -s -- --domain=bet.example.com --email=ops@example.com
-#   bash -s -- --domain=bet.example.com --email=ops@example.com --install-docker
-#   bash -s -- --host=1.2.3.4 --install-docker          # IP-only, no HTTPS
+# DNS before HTTPS (path layout):
+#   YOUR_DOMAIN , admin.YOUR_DOMAIN
 #
-# DNS before HTTPS install (A records → VPS IP):
-#   YOUR_DOMAIN , admin.YOUR_DOMAIN , agent.YOUR_DOMAIN , api.YOUR_DOMAIN
+# Legacy four-host: add --layout=hosts (also needs agent. + api.)
 #
 set -euo pipefail
 
@@ -22,9 +21,13 @@ DOMAIN="${DOMAIN:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 HOST_OVERRIDE="${HOST:-}"
 INSTALL_DOCKER="${INSTALL_DOCKER:-0}"
+URL_LAYOUT="${URL_LAYOUT:-path}"
+WIZARD="${WIZARD:-0}"
+USE_PREBUILT="${USE_PREBUILT_IMAGES:-0}"
+SKIP_DNS="${SKIP_DNS:-0}"
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \?//'
+  sed -n '2,18p' "$0" | sed 's/^# \?//'
   exit 0
 }
 
@@ -36,7 +39,12 @@ while [[ $# -gt 0 ]]; do
     --email) ACME_EMAIL="${2:-}"; shift 2 ;;
     --host=*) HOST_OVERRIDE="${1#*=}"; shift ;;
     --host) HOST_OVERRIDE="${2:-}"; shift 2 ;;
+    --layout=*) URL_LAYOUT="${1#*=}"; shift ;;
+    --layout) URL_LAYOUT="${2:-}"; shift 2 ;;
     --install-docker) INSTALL_DOCKER=1; shift ;;
+    --wizard) WIZARD=1; shift ;;
+    --prebuilt) USE_PREBUILT=1; shift ;;
+    --skip-dns) SKIP_DNS=1; shift ;;
     --dir=*) INSTALL_DIR="${1#*=}"; shift ;;
     --branch=*) BRANCH="${1#*=}"; shift ;;
     -h|--help) usage ;;
@@ -47,7 +55,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-export DOMAIN ACME_EMAIL
+export DOMAIN ACME_EMAIL URL_LAYOUT USE_PREBUILT_IMAGES="$USE_PREBUILT" SKIP_DNS
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -57,7 +65,8 @@ ensure_packages() {
   if need_cmd apt-get; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y
-    apt-get install -y ca-certificates curl git openssl ufw
+    apt-get install -y ca-certificates curl git openssl ufw dnsutils || \
+      apt-get install -y ca-certificates curl git openssl ufw
   fi
 }
 
@@ -138,43 +147,64 @@ if [[ -z "$ROOT" ]]; then
 fi
 
 cd "$ROOT"
-chmod +x scripts/vps-up.sh scripts/install-vps.sh || true
+chmod +x scripts/*.sh || true
+
+if [[ "$WIZARD" == "1" ]]; then
+  export INSTALL_DOCKER DOMAIN ACME_EMAIL URL_LAYOUT USE_PREBUILT_IMAGES="$USE_PREBUILT" SKIP_DNS
+  bash "$ROOT/scripts/setup-wizard.sh"
+  exit 0
+fi
 
 ENV_FILE="$ROOT/.env.vps"
 if [[ ! -f "$ENV_FILE" ]]; then
   cp "$ROOT/infrastructure/env.vps.example" "$ENV_FILE"
 fi
 
+set_kv() {
+  local key="$1" val="$2"
+  if grep -qE "^${key}=" "$ENV_FILE"; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+  fi
+}
+
 if [[ -n "$HOST_OVERRIDE" ]]; then
-  sed -i "s|^HOST=.*|HOST=${HOST_OVERRIDE}|" "$ENV_FILE"
+  set_kv HOST "$HOST_OVERRIDE"
 fi
 if [[ -n "$DOMAIN" ]]; then
-  if grep -qE '^DOMAIN=' "$ENV_FILE"; then
-    sed -i "s|^DOMAIN=.*|DOMAIN=${DOMAIN}|" "$ENV_FILE"
-  else
-    echo "DOMAIN=${DOMAIN}" >> "$ENV_FILE"
-  fi
+  set_kv DOMAIN "$DOMAIN"
 fi
 if [[ -n "$ACME_EMAIL" ]]; then
-  if grep -qE '^ACME_EMAIL=' "$ENV_FILE"; then
-    sed -i "s|^ACME_EMAIL=.*|ACME_EMAIL=${ACME_EMAIL}|" "$ENV_FILE"
-  else
-    echo "ACME_EMAIL=${ACME_EMAIL}" >> "$ENV_FILE"
-  fi
+  set_kv ACME_EMAIL "$ACME_EMAIL"
 fi
+set_kv URL_LAYOUT "$URL_LAYOUT"
+set_kv USE_PREBUILT_IMAGES "$USE_PREBUILT"
 
 configure_firewall
 
 if [[ -n "$DOMAIN" ]]; then
   PUB_IP="$(curl -4 -fsS https://ifconfig.me 2>/dev/null || curl -4 -fsS https://api.ipify.org 2>/dev/null || true)"
   echo ""
-  echo "Before certificates succeed, point these A records to this VPS${PUB_IP:+ ($PUB_IP)}:"
-  echo "  ${DOMAIN}"
-  echo "  admin.${DOMAIN}"
-  echo "  agent.${DOMAIN}"
-  echo "  api.${DOMAIN}"
+  if [[ "$URL_LAYOUT" == "hosts" ]]; then
+    echo "Before certificates succeed, point these A records to this VPS${PUB_IP:+ ($PUB_IP)}:"
+    echo "  ${DOMAIN}"
+    echo "  admin.${DOMAIN}"
+    echo "  agent.${DOMAIN}"
+    echo "  api.${DOMAIN}"
+  else
+    echo "Before certificates succeed, point these A records to this VPS${PUB_IP:+ ($PUB_IP)}:"
+    echo "  ${DOMAIN}"
+    echo "  admin.${DOMAIN}"
+  fi
   echo ""
+  if [[ "$SKIP_DNS" != "1" ]]; then
+    EXPECTED_IP="$PUB_IP" bash "$ROOT/scripts/check-dns.sh" --domain="$DOMAIN" --layout="$URL_LAYOUT" || {
+      echo "DNS check failed. Fix records or re-run with --skip-dns."
+      exit 1
+    }
+  fi
 fi
 
-export DOMAIN ACME_EMAIL
+export DOMAIN ACME_EMAIL URL_LAYOUT
 bash "$ROOT/scripts/vps-up.sh"

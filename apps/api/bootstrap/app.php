@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApiResponseEnvelope;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureUserRole;
 use App\Http\Middleware\RejectDuringMaintenance;
 use App\Http\Middleware\SecurityHeaders;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => EnsureUserRole::class,
+            'admin.perm' => EnsureAdminPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

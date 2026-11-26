@@ -55,7 +55,82 @@ final class MarketCatalogService
                     ['label' => 'Under', 'outcome_key' => 'under', 'side' => null, 'odds' => 1.9],
                 ],
             ],
+            'correct_score' => [
+                'name' => 'Correct Score',
+                'is_main' => false,
+                'sort_order' => 40,
+                'params' => ['max_goals' => 3],
+                'selections' => $this->correctScoreSelections(3),
+            ],
         ];
+    }
+
+    /**
+     * @return list<array{label: string, outcome_key: string, side: null, odds: float}>
+     */
+    private function correctScoreSelections(int $maxGoals): array
+    {
+        $out = [];
+        for ($h = 0; $h <= $maxGoals; $h++) {
+            for ($a = 0; $a <= $maxGoals; $a++) {
+                $key = "h{$h}_a{$a}";
+                // Simple demo odds: favour lower totals / draws slightly.
+                $spread = abs($h - $a);
+                $total = $h + $a;
+                $odds = round(6.5 + ($total * 1.8) + ($spread * 1.2), 2);
+                $out[] = [
+                    'label' => "{$h}-{$a}",
+                    'outcome_key' => $key,
+                    'side' => null,
+                    'odds' => max(3.5, min($odds, 55.0)),
+                ];
+            }
+        }
+        // No catch-all "Other" — admins can add custom scores via addCorrectScoreSelection().
+
+        return $out;
+    }
+
+    /**
+     * Add a custom correct-score outcome (e.g. 4-2) to an existing correct_score market.
+     */
+    public function addCorrectScoreSelection(Market $market, int $homeGoals, int $awayGoals, float $odds): Selection
+    {
+        if ($market->type !== 'correct_score') {
+            throw new InvalidArgumentException('Custom scores can only be added to Correct Score markets.');
+        }
+        if ($homeGoals < 0 || $awayGoals < 0 || $homeGoals > 20 || $awayGoals > 20) {
+            throw new InvalidArgumentException('Goals must be between 0 and 20.');
+        }
+        if ($odds < 1.01) {
+            throw new InvalidArgumentException('Odds must be at least 1.01.');
+        }
+
+        $key = "h{$homeGoals}_a{$awayGoals}";
+        if ($market->selections()->where('outcome_key', $key)->exists()) {
+            throw new InvalidArgumentException("Score {$homeGoals}-{$awayGoals} already exists on this market.");
+        }
+
+        $suffix = 'cs-'.$homeGoals.$awayGoals.'-'.Str::lower(Str::random(4));
+        $eventPublic = $market->event?->public_id ?? 'evt';
+
+        $selection = Selection::query()->create([
+            'market_id' => $market->id,
+            'public_id' => $eventPublic.'-'.$suffix.'-'.$key,
+            'label' => "{$homeGoals}-{$awayGoals}",
+            'side' => null,
+            'outcome_key' => $key,
+            'decimal_odds' => $odds,
+            'state' => 'open',
+            'odds_version' => 1,
+        ]);
+
+        $params = $market->params ?? [];
+        $params['max_goals'] = max((int) ($params['max_goals'] ?? 3), $homeGoals, $awayGoals);
+        $market->params = $params;
+        $market->save();
+
+        return $selection;
     }
 
     /**
@@ -129,7 +204,7 @@ final class MarketCatalogService
         if (! $event->markets()->where('type', '1x2')->exists()) {
             $this->addMarket($event, '1x2');
         }
-        foreach (['double_chance', 'btts', 'over_under'] as $type) {
+        foreach (['double_chance', 'btts', 'over_under', 'correct_score'] as $type) {
             if (! $event->markets()->where('type', $type)->exists()) {
                 $this->addMarket($event, $type, $type === 'over_under' ? ['line' => 2.5] : null);
             }
@@ -165,6 +240,14 @@ final class MarketCatalogService
                     'over_under' => $total === null
                         ? null
                         : $this->matchOverUnder($key, $total, (float) (($market->params ?? [])['line'] ?? 2.5)),
+                    'correct_score' => ($home === null || $away === null)
+                        ? null
+                        : $this->matchCorrectScore(
+                            $key,
+                            $home,
+                            $away,
+                            (int) (($market->params ?? [])['max_goals'] ?? 3)
+                        ),
                     default => null,
                 };
 
@@ -219,5 +302,23 @@ final class MarketCatalogService
         }
 
         return 'lost';
+    }
+
+    /**
+     * Settles against full-time (or final recorded) score.
+     * Exact outcome_key match wins; custom high scores work the same as grid scores.
+     * Legacy "other" still settles as catch-all for scores above max_goals.
+     */
+    private function matchCorrectScore(?string $key, int $home, int $away, int $maxGoals): string
+    {
+        $exact = "h{$home}_a{$away}";
+
+        if ($key === 'other') {
+            $isWithinDefaultGrid = $home <= $maxGoals && $away <= $maxGoals;
+
+            return $isWithinDefaultGrid ? 'lost' : 'won';
+        }
+
+        return $key === $exact ? 'won' : 'lost';
     }
 }

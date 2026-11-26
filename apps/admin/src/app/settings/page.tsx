@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { api, type SettingsGroup } from "@/lib/api";
+import { api, type DeployStatus, type SettingsGroup } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
 import { ImageUploadField } from "@/components/ImageUploadField";
 
 const TABS = [
   { id: "operations", label: "Operations" },
+  { id: "deploy", label: "Domain & deploy" },
   { id: "branding", label: "Branding" },
+  { id: "support_chat", label: "Live chat" },
   { id: "customer_messaging", label: "Customer messages" },
   { id: "locale", label: "Locale" },
   { id: "betting", label: "Betting" },
@@ -40,16 +42,22 @@ export default function SettingsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [deploy, setDeploy] = React.useState<DeployStatus | null>(null);
 
   const load = React.useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api.settings(token);
-      setGroups(data.groups);
-      setSecrets(data.secrets);
-      setDraft({ ...(data.groups[tab]?.payload ?? {}) });
+      if (tab === "deploy") {
+        const data = await api.deploy(token);
+        setDeploy(data);
+      } else {
+        const data = await api.settings(token);
+        setGroups(data.groups);
+        setSecrets(data.secrets);
+        setDraft({ ...(data.groups[tab]?.payload ?? {}) });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
     } finally {
@@ -62,7 +70,7 @@ export default function SettingsPage() {
   }, [load]);
 
   React.useEffect(() => {
-    if (groups[tab]) setDraft({ ...groups[tab].payload });
+    if (tab !== "deploy" && groups[tab]) setDraft({ ...groups[tab].payload });
   }, [tab, groups]);
 
   const setField = (key: string, value: unknown) => {
@@ -75,7 +83,7 @@ export default function SettingsPage() {
     liveConfirm.trim().toUpperCase() !== "LIVE";
 
   const save = async () => {
-    if (!token) return;
+    if (!token || tab === "deploy") return;
     if (liveSaveBlocked) {
       setError('Type LIVE to confirm production environment before saving.');
       return;
@@ -156,6 +164,100 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--text-tertiary)]">Loading…</p>
       ) : (
         <div className="admin-card space-y-4 p-4 sm:p-5">
+          {tab === "deploy" && (
+            <div className="space-y-4 text-sm text-[var(--text-secondary)]">
+              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4">
+                <p className="font-semibold text-[var(--text-primary)]">Domain &amp; deploy</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                  Read-only topology from the VPS environment. Rebuild/update on the server with the
+                  update command below — this panel does not push production changes by itself.
+                </p>
+              </div>
+              {!deploy ? (
+                <p className="text-xs text-[var(--text-tertiary)]">No deploy metadata yet.</p>
+              ) : (
+                <>
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                        Layout
+                      </dt>
+                      <dd className="mt-1 font-mono text-[var(--text-primary)]">{deploy.layout}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                        Domain
+                      </dt>
+                      <dd className="mt-1 font-mono text-[var(--text-primary)]">
+                        {deploy.domain ?? "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                      Portal URLs
+                    </p>
+                    {(
+                      [
+                        ["Customer", deploy.urls.customer],
+                        ["Agent", deploy.urls.agent],
+                        ["Admin", deploy.urls.admin],
+                        ["API", deploy.urls.api],
+                        ["API health", deploy.urls.api_health],
+                      ] as const
+                    ).map(([label, href]) => (
+                      <div
+                        key={label}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border-soft)] px-3 py-2"
+                      >
+                        <span className="text-xs font-medium text-[var(--text-primary)]">{label}</span>
+                        {href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate font-mono text-xs text-[var(--accent)] hover:underline"
+                          >
+                            {href}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-[var(--text-tertiary)]">—</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {deploy.dns_required.length > 0 ? (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                        DNS A records
+                      </p>
+                      <ul className="mt-2 list-inside list-disc font-mono text-xs text-[var(--text-primary)]">
+                        {deploy.dns_required.map((h) => (
+                          <li key={h}>{h}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                      Update on VPS
+                    </p>
+                    <code className="mt-2 block overflow-x-auto rounded-md bg-[var(--surface-app)] px-2 py-2 font-mono text-xs text-[var(--text-primary)]">
+                      {deploy.update_command}
+                    </code>
+                  </div>
+                  {deploy.notes.length > 0 ? (
+                    <ul className="list-inside list-disc space-y-1 text-xs text-[var(--text-tertiary)]">
+                      {deploy.notes.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
+            </div>
+          )}
+
           {tab === "operations" && (
             <div className="space-y-4">
               <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
@@ -229,6 +331,120 @@ export default function SettingsPage() {
                   value={String(draft.maintenance_eta ?? "")}
                   onChange={(v) => setField("maintenance_eta", v || null)}
                 />
+              </div>
+            </div>
+          )}
+
+          {tab === "support_chat" && (
+            <div className="space-y-5">
+              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                <p className="font-semibold text-[var(--text-primary)]">In-app live support</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                  Controls the customer chat page, floating widget, greeting, business hours, and
+                  canned replies used in Admin → Live support.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Toggle
+                  label="Enable live chat"
+                  checked={Boolean(draft.enabled)}
+                  onChange={(v) => setField("enabled", v)}
+                />
+                <Toggle
+                  label="Show floating chat widget"
+                  checked={draft.widget_enabled !== false}
+                  onChange={(v) => setField("widget_enabled", v)}
+                />
+                <Toggle
+                  label="Allow customer to reopen a closed chat (otherwise they must start a new chat)"
+                  checked={draft.allow_customer_reopen !== false}
+                  onChange={(v) => setField("allow_customer_reopen", v)}
+                />
+                <Toggle
+                  label="Play sound on new messages"
+                  checked={draft.sound_enabled !== false}
+                  onChange={(v) => setField("sound_enabled", v)}
+                />
+                <Toggle
+                  label="Enter to send (Shift+Enter for new line)"
+                  checked={draft.enter_to_send !== false}
+                  onChange={(v) => setField("enter_to_send", v)}
+                />
+                <Field
+                  label="Title"
+                  value={String(draft.title ?? "Live support")}
+                  onChange={(v) => setField("title", v)}
+                />
+                <Field
+                  label="Subtitle"
+                  value={String(draft.subtitle ?? "")}
+                  onChange={(v) => setField("subtitle", v)}
+                />
+                <Field
+                  label="Poll interval (ms)"
+                  value={String(draft.poll_interval_ms ?? 2000)}
+                  onChange={(v) => setField("poll_interval_ms", Number(v) || 2000)}
+                />
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Greeting (auto-sent when a customer opens chat)
+                    <textarea
+                      value={String(draft.greeting ?? "")}
+                      onChange={(e) => setField("greeting", e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Offline message (outside business hours)
+                    <textarea
+                      value={String(draft.offline_message ?? "")}
+                      onChange={(e) => setField("offline_message", e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+                <Toggle
+                  label="Enforce business hours"
+                  checked={Boolean(draft.business_hours_enabled)}
+                  onChange={(v) => setField("business_hours_enabled", v)}
+                />
+                <Field
+                  label="Timezone"
+                  value={String(draft.timezone ?? "Africa/Accra")}
+                  onChange={(v) => setField("timezone", v)}
+                />
+                <Field
+                  label="Hours start (HH:MM)"
+                  value={String(draft.business_hours_start ?? "09:00")}
+                  onChange={(v) => setField("business_hours_start", v)}
+                />
+                <Field
+                  label="Hours end (HH:MM)"
+                  value={String(draft.business_hours_end ?? "21:00")}
+                  onChange={(v) => setField("business_hours_end", v)}
+                />
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>
+                    Canned replies (JSON array of {"{id,title,body}"})
+                    <textarea
+                      value={JSON.stringify(draft.canned_replies ?? [], null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          if (Array.isArray(parsed)) setField("canned_replies", parsed);
+                        } catch {
+                          // keep typing until valid JSON
+                        }
+                      }}
+                      rows={8}
+                      className={`${inputClass} font-mono text-[11px]`}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -317,70 +533,216 @@ export default function SettingsPage() {
                   </label>
                 </div>
               </div>
+              <div className="border-t border-[var(--border-soft)] pt-4 space-y-3">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  Win / withdrawal activity feed
+                </p>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  Rotating customer lobby cards. Synthetic items always show the illustrative
+                  label. Use responsibly — misleading win claims may be restricted by regulation.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Toggle
+                    label="Enable activity feed"
+                    checked={Boolean(draft.activity_enabled)}
+                    onChange={(v) => setField("activity_enabled", v)}
+                  />
+                  <Toggle
+                    label="Include real anonymized activity"
+                    checked={draft.activity_include_real !== false}
+                    onChange={(v) => setField("activity_include_real", v)}
+                  />
+                  <Toggle
+                    label="Include illustrative (fake) activity"
+                    checked={draft.activity_include_fake !== false}
+                    onChange={(v) => setField("activity_include_fake", v)}
+                  />
+                  <Field
+                    label="Time between messages (ms)"
+                    value={String(draft.activity_interval_ms ?? 10000)}
+                    onChange={(v) => setField("activity_interval_ms", Number(v) || 10000)}
+                  />
+                  <Field
+                    label="How long each toast stays (ms)"
+                    value={String(draft.activity_display_ms ?? 4500)}
+                    onChange={(v) => setField("activity_display_ms", Number(v) || 4500)}
+                  />
+                  <Select
+                    label="Toast position"
+                    value={String(draft.activity_position ?? "bottom_left")}
+                    options={[
+                      "bottom_left",
+                      "bottom_center",
+                      "bottom_right",
+                      "top_left",
+                      "top_center",
+                      "top_right",
+                    ]}
+                    onChange={(v) => setField("activity_position", v)}
+                  />
+                  <Field
+                    label="Min win amount (pesewas)"
+                    value={String(draft.activity_min_win_minor ?? 500)}
+                    onChange={(v) => setField("activity_min_win_minor", Number(v) || 0)}
+                  />
+                  <Field
+                    label="Min withdrawal amount (pesewas)"
+                    value={String(draft.activity_min_withdrawal_minor ?? 1000)}
+                    onChange={(v) => setField("activity_min_withdrawal_minor", Number(v) || 0)}
+                  />
+                  <Field
+                    label="Illustrative label"
+                    value={String(draft.activity_illustrative_label ?? "Illustrative")}
+                    onChange={(v) => setField("activity_illustrative_label", v)}
+                  />
+                  <Field
+                    label="Feed size"
+                    value={String(draft.activity_limit ?? 12)}
+                    onChange={(v) => setField("activity_limit", Number(v) || 12)}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
           {tab === "branding" && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                label="Display name"
-                value={String(draft.display_name ?? "")}
-                onChange={(v) => setField("display_name", v)}
-              />
-              <Field
-                label="Legal name"
-                value={String(draft.legal_name ?? "")}
-                onChange={(v) => setField("legal_name", v)}
-              />
-              <ImageUploadField
-                label="Site logo"
-                kind="logo"
-                value={String(draft.logo_url ?? "")}
-                onChange={(v) => setField("logo_url", v || null)}
-                hint="Shown on Customer, Admin, and Agent headers. Save Branding after upload."
-              />
-              <ImageUploadField
-                label="Favicon"
-                kind="favicon"
-                value={String(draft.favicon_url ?? "")}
-                onChange={(v) => setField("favicon_url", v || null)}
-                hint="Browser tab icon for customer and agent apps."
-              />
-              <Field
-                label="Support email"
-                value={String(draft.support_email ?? "")}
-                onChange={(v) => setField("support_email", v)}
-              />
-              <Field
-                label="Support phone"
-                value={String(draft.support_phone ?? "")}
-                onChange={(v) => setField("support_phone", v)}
-              />
-              <Field
-                label="Primary color"
-                value={String(draft.color_primary ?? "")}
-                onChange={(v) => setField("color_primary", v)}
-              />
-              <Field
-                label="Accent color"
-                value={String(draft.color_accent ?? "")}
-                onChange={(v) => setField("color_accent", v)}
-              />
-              <Field
-                label="Background"
-                value={String(draft.color_background ?? "")}
-                onChange={(v) => setField("color_background", v)}
-              />
-              <Field
-                label="Surface"
-                value={String(draft.color_surface ?? "")}
-                onChange={(v) => setField("color_surface", v)}
-              />
-              <Field
-                label="Text color"
-                value={String(draft.color_text ?? "")}
-                onChange={(v) => setField("color_text", v)}
-              />
+            <div className="space-y-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label="Display name"
+                  value={String(draft.display_name ?? "")}
+                  onChange={(v) => setField("display_name", v)}
+                />
+                <Field
+                  label="Legal name"
+                  value={String(draft.legal_name ?? "")}
+                  onChange={(v) => setField("legal_name", v)}
+                />
+                <ImageUploadField
+                  label="Site logo"
+                  kind="logo"
+                  value={String(draft.logo_url ?? "")}
+                  onChange={(v) => setField("logo_url", v || null)}
+                  hint="Shown on Customer, Admin, and Agent headers. Save Branding after upload."
+                />
+                <ImageUploadField
+                  label="Favicon"
+                  kind="favicon"
+                  value={String(draft.favicon_url ?? "")}
+                  onChange={(v) => setField("favicon_url", v || null)}
+                  hint="Browser tab icon for customer and agent apps."
+                />
+                <Field
+                  label="Support email"
+                  value={String(draft.support_email ?? "")}
+                  onChange={(v) => setField("support_email", v)}
+                />
+                <Field
+                  label="Support phone"
+                  value={String(draft.support_phone ?? "")}
+                  onChange={(v) => setField("support_phone", v)}
+                />
+              </div>
+
+              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-3 text-xs text-[var(--text-tertiary)]">
+                Live chat enablement (including Enter-to-send) is under the{" "}
+                <strong className="text-[var(--text-primary)]">Live chat</strong> tab. System colors
+                below drive the entire customer app for day and night themes, including chat panels
+                and input fields.
+              </div>
+
+              {(["day", "night"] as const).map((mode) => {
+                const themeColors =
+                  ((draft.themes as Record<string, Record<string, string>> | undefined)?.[mode]) ??
+                  {};
+                const setThemeColor = (key: string, value: string) => {
+                  const themes = {
+                    ...((draft.themes as Record<string, Record<string, string>>) ?? {}),
+                  };
+                  themes[mode] = { ...(themes[mode] ?? {}), [key]: value };
+                  setField("themes", themes);
+                  if (mode === "day") {
+                    if (key === "accent") setField("color_accent", value);
+                    if (key === "bg") setField("color_background", value);
+                    if (key === "surface") setField("color_surface", value);
+                    if (key === "text") {
+                      setField("color_text", value);
+                      setField("color_primary", value);
+                    }
+                  }
+                };
+                return (
+                  <div
+                    key={mode}
+                    className="space-y-3 rounded-lg border border-[var(--border-soft)] p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">
+                        {mode === "day" ? "Day theme colors" : "Night theme colors"}
+                      </p>
+                      <span
+                        className="h-5 w-5 rounded-full border border-[var(--border-soft)]"
+                        style={{ background: themeColors.accent || "#F5A524" }}
+                        title="Accent preview"
+                      />
+                    </div>
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      Core surfaces
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {THEME_COLOR_FIELDS.core.map((f) => (
+                        <ColorField
+                          key={`${mode}-${f.key}`}
+                          label={f.label}
+                          value={String(themeColors[f.key] ?? f.fallback[mode])}
+                          onChange={(v) => setThemeColor(f.key, v)}
+                          allowRgba={f.allowRgba}
+                        />
+                      ))}
+                    </div>
+                    <p className="pt-2 text-[11px] text-[var(--text-tertiary)]">
+                      Status & odds
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {THEME_COLOR_FIELDS.status.map((f) => (
+                        <ColorField
+                          key={`${mode}-${f.key}`}
+                          label={f.label}
+                          value={String(themeColors[f.key] ?? f.fallback[mode])}
+                          onChange={(v) => setThemeColor(f.key, v)}
+                        />
+                      ))}
+                    </div>
+                    <p className="pt-2 text-[11px] text-[var(--text-tertiary)]">
+                      Atmosphere (page background wash)
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {THEME_COLOR_FIELDS.atmosphere.map((f) => (
+                        <ColorField
+                          key={`${mode}-${f.key}`}
+                          label={f.label}
+                          value={String(themeColors[f.key] ?? f.fallback[mode])}
+                          onChange={(v) => setThemeColor(f.key, v)}
+                          allowRgba={f.allowRgba}
+                        />
+                      ))}
+                    </div>
+                    <p className="pt-2 text-[11px] text-[var(--text-tertiary)]">
+                      Live chat
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {THEME_COLOR_FIELDS.chat.map((f) => (
+                        <ColorField
+                          key={`${mode}-${f.key}`}
+                          label={f.label}
+                          value={String(themeColors[f.key] ?? f.fallback[mode])}
+                          onChange={(v) => setThemeColor(f.key, v)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -991,14 +1353,16 @@ export default function SettingsPage() {
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || liveSaveBlocked}
-              className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-sm font-bold text-[var(--action-primary-fg)] disabled:opacity-60"
-            >
-              {saving ? "Saving…" : `Save ${tab}`}
-            </button>
+            {tab !== "deploy" ? (
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || liveSaveBlocked}
+                className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-sm font-bold text-[var(--action-primary-fg)] disabled:opacity-60"
+              >
+                {saving ? "Saving…" : `Save ${tab}`}
+              </button>
+            ) : null}
             {status ? (
               <p className="text-xs font-semibold text-[var(--status-healthy-fg)]">{status}</p>
             ) : null}
@@ -1016,6 +1380,138 @@ const inputClass =
   "mt-1 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-3 py-2 text-sm font-normal normal-case text-[var(--text-primary)] outline-none focus:border-[var(--accent)]";
 const labelClass =
   "block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]";
+
+type ThemeColorField = {
+  key: string;
+  label: string;
+  allowRgba?: boolean;
+  fallback: { day: string; night: string };
+};
+
+const THEME_COLOR_FIELDS: {
+  core: ThemeColorField[];
+  status: ThemeColorField[];
+  atmosphere: ThemeColorField[];
+  chat: ThemeColorField[];
+} = {
+  core: [
+    { key: "bg", label: "Page background", fallback: { day: "#f3f4f6", night: "#090a0c" } },
+    { key: "surface", label: "Surface / cards", fallback: { day: "#ffffff", night: "#111318" } },
+    { key: "surface_2", label: "Surface elevated", fallback: { day: "#eef0f3", night: "#181b21" } },
+    { key: "border", label: "Borders", fallback: { day: "#e2e5ea", night: "#2a2e36" } },
+    { key: "text", label: "Primary text", fallback: { day: "#18181b", night: "#f4f4f5" } },
+    { key: "muted", label: "Muted text", fallback: { day: "#71717a", night: "#9ca3af" } },
+    { key: "accent", label: "Accent / CTAs", fallback: { day: "#F5A524", night: "#F5A524" } },
+    { key: "accent_ink", label: "Accent text", fallback: { day: "#18181b", night: "#0a0a0a" } },
+  ],
+  status: [
+    { key: "danger", label: "Danger", fallback: { day: "#dc2626", night: "#f87171" } },
+    { key: "live", label: "Live", fallback: { day: "#dc2626", night: "#f87171" } },
+    { key: "odds_up", label: "Odds up", fallback: { day: "#16a34a", night: "#4ade80" } },
+    { key: "odds_down", label: "Odds down", fallback: { day: "#e11d48", night: "#fb7185" } },
+    { key: "win", label: "Win", fallback: { day: "#16a34a", night: "#4ade80" } },
+    { key: "loss", label: "Loss", fallback: { day: "#71717a", night: "#9ca3af" } },
+  ],
+  atmosphere: [
+    {
+      key: "atmosphere_base",
+      label: "Atmosphere base",
+      fallback: { day: "#f3f4f6", night: "#090a0c" },
+    },
+    {
+      key: "atmosphere_mid",
+      label: "Atmosphere mid",
+      fallback: { day: "#e8ebef", night: "#12151a" },
+    },
+    {
+      key: "atmosphere_edge",
+      label: "Atmosphere edge (hex or rgba)",
+      allowRgba: true,
+      fallback: {
+        day: "rgba(24, 28, 36, 0.045)",
+        night: "rgba(36, 42, 54, 0.45)",
+      },
+    },
+  ],
+  chat: [
+    { key: "chat_panel", label: "Chat panel", fallback: { day: "#ffffff", night: "#111318" } },
+    { key: "chat_input", label: "Chat input field", fallback: { day: "#eef0f3", night: "#181b21" } },
+    { key: "chat_composer", label: "Composer bar", fallback: { day: "#ffffff", night: "#111318" } },
+    {
+      key: "chat_bubble_mine",
+      label: "My bubble",
+      fallback: { day: "#F5A524", night: "#F5A524" },
+    },
+    {
+      key: "chat_bubble_mine_ink",
+      label: "My bubble text",
+      fallback: { day: "#18181b", night: "#0a0a0a" },
+    },
+    {
+      key: "chat_bubble_peer",
+      label: "Peer bubble",
+      fallback: { day: "#f8f9fb", night: "#181b21" },
+    },
+    {
+      key: "chat_bubble_peer_border",
+      label: "Peer bubble border",
+      fallback: { day: "#e2e5ea", night: "#2a2e36" },
+    },
+    { key: "chat_system", label: "System message", fallback: { day: "#e4e4e7", night: "#27272a" } },
+  ],
+};
+
+function toPickerHex(value: string, fallback = "#888888"): string {
+  const v = value.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) {
+    if (v.length === 4) {
+      return `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`.toLowerCase();
+    }
+    return v.toLowerCase();
+  }
+  const rgba = v.match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+\s*)?\)$/i
+  );
+  if (rgba) {
+    const hex = (n: string) => Number(n).toString(16).padStart(2, "0");
+    return `#${hex(rgba[1])}${hex(rgba[2])}${hex(rgba[3])}`;
+  }
+  return fallback;
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+  allowRgba = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  allowRgba?: boolean;
+}) {
+  const pickerValue = toPickerHex(value);
+  return (
+    <label className={labelClass}>
+      {label}
+      <div className="mt-1 flex items-center gap-2">
+        <input
+          type="color"
+          aria-label={`${label} picker`}
+          value={pickerValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 cursor-pointer rounded-md border border-[var(--border-soft)] bg-transparent p-1"
+        />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={allowRgba ? "#hex or rgba()" : "#000000"}
+          className={`${inputClass} mt-0 flex-1 font-mono text-xs`}
+        />
+      </div>
+    </label>
+  );
+}
 
 function LegalBlock({
   titleLabel,

@@ -315,6 +315,134 @@ export const api = {
       body: JSON.stringify(input),
     }, token);
   },
+  withdrawals(token: string) {
+    return request<{
+      withdrawals: Array<{
+        id: number;
+        status: string;
+        amountMinor: number;
+        currency: string;
+        reference: string | null;
+        createdAt: string | null;
+        completedAt: string | null;
+      }>;
+    }>("/customer/wallet/withdrawals", {}, token);
+  },
+  deposits(token: string) {
+    return request<{
+      deposits: Array<{
+        id: number;
+        status: string;
+        amountMinor: number;
+        currency: string;
+        provider: string | null;
+        reference: string | null;
+        createdAt: string | null;
+        completedAt: string | null;
+      }>;
+    }>("/customer/wallet/deposits", {}, token);
+  },
+  publicActivity() {
+    return request<{
+      enabled: boolean;
+      illustrativeLabel: string;
+      items: Array<{
+        id: string;
+        kind: "win" | "withdrawal" | string;
+        synthetic: boolean;
+        displayName: string;
+        amountMinor: number;
+        message: string;
+        at: string | null;
+      }>;
+    }>("/public/activity");
+  },
+  supportChat(
+    token: string,
+    opts?: {
+      afterId?: number;
+      create?: boolean;
+      markRead?: boolean;
+      conversationId?: number;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (opts?.afterId) params.set("after_id", String(opts.afterId));
+    if (opts?.create === true) params.set("create", "1");
+    if (opts?.create === false) params.set("create", "0");
+    if (opts?.markRead === false) params.set("mark_read", "0");
+    if (opts?.conversationId) params.set("conversation_id", String(opts.conversationId));
+    const q = params.toString() ? `?${params}` : "";
+    return request<{
+      config: import("@/lib/support-chat").SupportConfig;
+      conversation: import("@/lib/support-chat").SupportConversation | null;
+      conversations?: import("@/lib/support-chat").SupportConversation[];
+      messages: import("@/lib/support-chat").SupportMessage[];
+      peerTyping: boolean;
+    }>(`/customer/support/chat${q}`, {}, token);
+  },
+  startSupportChat(token: string) {
+    return request<{
+      config: import("@/lib/support-chat").SupportConfig;
+      conversation: import("@/lib/support-chat").SupportConversation;
+      conversations?: import("@/lib/support-chat").SupportConversation[];
+      messages: import("@/lib/support-chat").SupportMessage[];
+      peerTyping: boolean;
+    }>("/customer/support/chat/start", { method: "POST", body: JSON.stringify({}) }, token);
+  },
+  reopenSupportChat(token: string, conversationId: number) {
+    return request<{
+      config: import("@/lib/support-chat").SupportConfig;
+      conversation: import("@/lib/support-chat").SupportConversation;
+      conversations?: import("@/lib/support-chat").SupportConversation[];
+      messages: import("@/lib/support-chat").SupportMessage[];
+      peerTyping: boolean;
+    }>(`/customer/support/chat/${conversationId}/reopen`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }, token);
+  },
+  async sendSupportMessage(
+    token: string,
+    payload: {
+      body?: string;
+      file?: File | null;
+      conversationId?: number;
+    }
+  ) {
+    const form = new FormData();
+    form.append("body", payload.body ?? "");
+    if (payload.conversationId) {
+      form.append("conversation_id", String(payload.conversationId));
+    }
+    if (payload.file) {
+      form.append("file", payload.file);
+    }
+    const headers = new Headers({ Accept: "application/json" });
+    headers.set("Authorization", `Bearer ${token}`);
+    const res = await fetch(`${API_BASE}/customer/support/chat`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    const json = (await res.json().catch(() => null)) as ApiEnvelope<{
+      config: import("@/lib/support-chat").SupportConfig;
+      conversation: import("@/lib/support-chat").SupportConversation;
+      conversations?: import("@/lib/support-chat").SupportConversation[];
+      message: import("@/lib/support-chat").SupportMessage;
+      peerTyping: boolean;
+    }> | null;
+    if (!res.ok || !json?.success) {
+      throw new ApiError(json?.message || "Send failed", res.status, json?.errors);
+    }
+    return json.data;
+  },
+  supportTyping(token: string, conversationId?: number) {
+    return request<{ ok: boolean }>("/customer/support/chat/typing", {
+      method: "POST",
+      body: JSON.stringify(conversationId ? { conversation_id: conversationId } : {}),
+    }, token);
+  },
   bets(token: string) {
     return request<{ bets: CustomerBet[] }>("/customer/bets", {}, token);
   },

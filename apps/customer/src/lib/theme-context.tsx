@@ -10,31 +10,34 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
-const STORAGE_KEY = "nextgen.theme";
+export const THEME_STORAGE_KEY = "nextgen.theme";
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
+
+function readInitialTheme(): ThemeMode {
+  if (typeof document === "undefined") return "night";
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "day" || attr === "night") return attr;
+  return "night";
+}
 
 function applyTheme(mode: ThemeMode) {
   document.documentElement.setAttribute("data-theme", mode);
+  document.documentElement.style.colorScheme = mode === "day" ? "light" : "dark";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // SSR default matches <html data-theme="night">; boot script + effect sync stored preference.
   const [theme, setThemeState] = React.useState<ThemeMode>("night");
 
   React.useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-    const initial =
-      stored === "day" || stored === "night"
-        ? stored
-        : window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "day"
-          : "night";
+    const initial = readInitialTheme();
     setThemeState(initial);
     applyTheme(initial);
   }, []);
 
   const setTheme = React.useCallback((mode: ThemeMode) => {
     setThemeState(mode);
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
     applyTheme(mode);
   }, []);
 

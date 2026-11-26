@@ -1,10 +1,48 @@
-:root,
+/* Shared structural tokens — colors live only under [data-theme]. */
+:root {
+  --ng-radius-sm: 6px;
+  --ng-radius-md: 10px;
+  --ng-radius-lg: 14px;
+  --ng-font-display: "Sora", "Segoe UI", sans-serif;
+  --ng-font-body: "Manrope", "Segoe UI", sans-serif;
+  --ng-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* Fallbacks before theme script runs (match night default in layout). */
+  --ng-bg: #090a0c;
+  --ng-surface: #111318;
+  --ng-surface-2: #181b21;
+  --ng-border: #2a2e36;
+  --ng-text: #f4f4f5;
+  --ng-muted: #9ca3af;
+  --ng-accent: #f5a524;
+  --ng-accent-ink: #0a0a0a;
+  --ng-danger: #f87171;
+  --ng-live: #f87171;
+  --ng-odds-up: #4ade80;
+  --ng-odds-down: #fb7185;
+  --ng-focus: #f5a524;
+  --ng-win: #4ade80;
+  --ng-loss: #9ca3af;
+  --ng-shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --ng-atmosphere-base: #090a0c;
+  --ng-atmosphere-mid: #12151a;
+  --ng-atmosphere-edge: rgba(36, 42, 54, 0.45);
+  --ng-chat-panel: #111318;
+  --ng-chat-input: #181b21;
+  --ng-chat-composer: #111318;
+  --ng-chat-bubble-mine: #f5a524;
+  --ng-chat-bubble-mine-ink: #0a0a0a;
+  --ng-chat-bubble-peer: #181b21;
+  --ng-chat-bubble-peer-border: #2a2e36;
+  --ng-chat-system: #27272a;
+  color-scheme: dark;
+}
+
+/* Day — cool zinc paper; amber only on CTAs/links, never in the wash. */
 [data-theme="day"] {
-  /* Neutral surfaces — amber is for actions/links only */
-  --ng-bg: #fafafa;
+  --ng-bg: #f3f4f6;
   --ng-surface: #ffffff;
-  --ng-surface-2: #f4f4f5;
-  --ng-border: #e4e4e7;
+  --ng-surface-2: #eef0f3;
+  --ng-border: #e2e5ea;
   --ng-text: #18181b;
   --ng-muted: #71717a;
   --ng-accent: #f5a524;
@@ -16,33 +54,50 @@
   --ng-focus: #f5a524;
   --ng-win: #16a34a;
   --ng-loss: #71717a;
-  --ng-radius-sm: 6px;
-  --ng-radius-md: 10px;
-  --ng-radius-lg: 14px;
-  --ng-font-display: "Sora", "Segoe UI", sans-serif;
-  --ng-font-body: "Manrope", "Segoe UI", sans-serif;
-  --ng-font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --ng-shadow-soft: 0 12px 40px rgba(24, 24, 27, 0.1);
+  --ng-shadow-soft: 0 12px 36px rgba(24, 28, 36, 0.08);
+  --ng-atmosphere-base: #f3f4f6;
+  --ng-atmosphere-mid: #e8ebef;
+  --ng-atmosphere-edge: rgba(24, 28, 36, 0.045);
+  --ng-chat-panel: #ffffff;
+  --ng-chat-input: #eef0f3;
+  --ng-chat-composer: #ffffff;
+  --ng-chat-bubble-mine: #f5a524;
+  --ng-chat-bubble-mine-ink: #18181b;
+  --ng-chat-bubble-peer: #f8f9fb;
+  --ng-chat-bubble-peer-border: #e2e5ea;
+  --ng-chat-system: #e4e4e7;
   color-scheme: light;
 }
 
+/* Night — ink / graphite stadium feel; no purple, no amber sky glow. */
 [data-theme="night"] {
-  --ng-bg: #000000;
-  --ng-surface: #0a0a0a;
-  --ng-surface-2: #141414;
-  --ng-border: #27272a;
-  --ng-text: #fafafa;
-  --ng-muted: #a1a1aa;
+  --ng-bg: #090a0c;
+  --ng-surface: #111318;
+  --ng-surface-2: #181b21;
+  --ng-border: #2a2e36;
+  --ng-text: #f4f4f5;
+  --ng-muted: #9ca3af;
   --ng-accent: #f5a524;
-  --ng-accent-ink: #000000;
+  --ng-accent-ink: #0a0a0a;
   --ng-danger: #f87171;
   --ng-live: #f87171;
   --ng-odds-up: #4ade80;
   --ng-odds-down: #fb7185;
   --ng-focus: #f5a524;
   --ng-win: #4ade80;
-  --ng-loss: #a1a1aa;
+  --ng-loss: #9ca3af;
   --ng-shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --ng-atmosphere-base: #090a0c;
+  --ng-atmosphere-mid: #12151a;
+  --ng-atmosphere-edge: rgba(36, 42, 54, 0.45);
+  --ng-chat-panel: #111318;
+  --ng-chat-input: #181b21;
+  --ng-chat-composer: #111318;
+  --ng-chat-bubble-mine: #f5a524;
+  --ng-chat-bubble-mine-ink: #0a0a0a;
+  --ng-chat-bubble-peer: #181b21;
+  --ng-chat-bubble-peer-border: #2a2e36;
+  --ng-chat-system: #27272a;
   color-scheme: dark;
 }
 
@@ -86,8 +141,41 @@ select {
   color: var(--ng-text);
 }
 
+/*
+  Atmosphere: layered neutral depth (zinc / ink).
+  Accent color is intentionally excluded — CTAs own amber.
+*/
 .ng-atmosphere {
-  background: var(--ng-bg);
+  background-color: var(--ng-atmosphere-base);
+  background-image:
+    linear-gradient(
+      165deg,
+      var(--ng-atmosphere-mid) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse 70% 42% at 100% 0%,
+      var(--ng-atmosphere-edge),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 55% 38% at 0% 100%,
+      var(--ng-atmosphere-edge),
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      var(--ng-atmosphere-base) 0%,
+      var(--ng-bg) 100%
+    );
+  background-attachment: fixed;
+}
+
+@media (max-width: 640px) {
+  .ng-atmosphere {
+    /* Fixed backgrounds can jank on mobile scroll. */
+    background-attachment: scroll;
+  }
 }
 
 .ng-tabular {
@@ -95,7 +183,6 @@ select {
   font-family: var(--ng-font-mono);
 }
 
-/* Primary text links — amber across themes */
 .ng-link {
   color: var(--ng-accent);
   font-weight: 700;

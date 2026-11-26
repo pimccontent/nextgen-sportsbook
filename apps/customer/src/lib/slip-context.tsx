@@ -57,16 +57,16 @@ function readStoredSlip(): { selections: SlipSelection[]; bookingCode: string } 
 }
 
 export function SlipProvider({ children }: { children: React.ReactNode }) {
-  const stored = React.useMemo(() => readStoredSlip(), []);
-  const [selections, setSelections] = React.useState<SlipSelection[]>(stored.selections);
-  const [bookingCode, setBookingCode] = React.useState(stored.bookingCode);
+  // Empty SSR/first paint; restore from localStorage after mount (hydration-safe).
+  const [selections, setSelections] = React.useState<SlipSelection[]>([]);
+  const [bookingCode, setBookingCode] = React.useState("");
   const [hydrated, setHydrated] = React.useState(false);
   const [openSlipNonce, setOpenSlipNonce] = React.useState(0);
 
   React.useEffect(() => {
-    const again = readStoredSlip();
-    setSelections(again.selections);
-    setBookingCode(again.bookingCode);
+    const stored = readStoredSlip();
+    setSelections(stored.selections);
+    setBookingCode(stored.bookingCode);
     setHydrated(true);
   }, []);
 

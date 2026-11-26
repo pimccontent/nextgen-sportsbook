@@ -1,5 +1,34 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+function resolveApiBase(): string {
+  const fromEnv = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim().replace(/\/$/, "");
+  if (fromEnv && fromEnv !== "auto") {
+    return fromEnv;
+  }
+  if (typeof window !== "undefined") {
+    const { protocol, hostname, origin } = window.location;
+    if (hostname.startsWith("admin.")) {
+      return `${protocol}//${hostname.slice("admin.".length)}/api/v1`;
+    }
+    return `${origin}/api/v1`;
+  }
+  return "http://localhost:8081/api/v1";
+}
+
+const API_BASE = resolveApiBase();
+
+export type DeployStatus = {
+  layout: string;
+  domain: string | null;
+  urls: {
+    customer: string | null;
+    admin: string | null;
+    agent: string | null;
+    api: string | null;
+    api_health: string | null;
+  };
+  dns_required: string[];
+  update_command: string;
+  notes: string[];
+};
 
 export type ApiUser = {
   id: number;
@@ -9,6 +38,44 @@ export type ApiUser = {
   role: string;
   status: string;
   two_factor_enabled: boolean;
+  is_super_admin?: boolean;
+  permissions?: string[];
+  last_login_at?: string | null;
+  profile?: {
+    display_name?: string | null;
+    country_code?: string;
+    preferred_currency?: string;
+  } | null;
+};
+
+export type AdminAccount = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  display_name: string | null;
+  role: string;
+  role_label: string;
+  status: string;
+  is_super_admin: boolean;
+  permissions: string[];
+  two_factor_enabled: boolean;
+  last_login_at: string | null;
+};
+
+export type StaffMember = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  display_name: string | null;
+  role: string;
+  role_label: string;
+  status: string;
+  is_super_admin: boolean;
+  permissions: string[];
+  last_login_at: string | null;
+  created_at: string | null;
 };
 
 type ApiEnvelope<T> = {
@@ -127,8 +194,107 @@ export const api = {
   logout(token: string) {
     return request<null>("/auth/logout", { method: "POST" }, token);
   },
+  account(token: string) {
+    return request<{ account: AdminAccount; modules: Record<string, string> }>(
+      "/admin/account",
+      {},
+      token
+    );
+  },
+  updateAccount(
+    token: string,
+    input: {
+      name?: string;
+      display_name?: string | null;
+      phone?: string | null;
+      email?: string;
+    }
+  ) {
+    return request<{ account: AdminAccount }>(
+      "/admin/account",
+      { method: "PUT", body: JSON.stringify(input) },
+      token
+    );
+  },
+  updateAccountPassword(
+    token: string,
+    input: { current_password: string; password: string; password_confirmation: string }
+  ) {
+    return request<null>(
+      "/admin/account/password",
+      { method: "PUT", body: JSON.stringify(input) },
+      token
+    );
+  },
+  staff(token: string) {
+    return request<{ staff: StaffMember[]; modules: Record<string, string> }>(
+      "/admin/staff",
+      {},
+      token
+    );
+  },
+  staffMember(token: string, id: number) {
+    return request<{ staff: StaffMember; modules: Record<string, string> }>(
+      `/admin/staff/${id}`,
+      {},
+      token
+    );
+  },
+  createStaff(
+    token: string,
+    input: {
+      name: string;
+      email: string;
+      phone?: string | null;
+      password: string;
+      display_name?: string | null;
+      permissions?: string[];
+    }
+  ) {
+    return request<{ staff: StaffMember; modules: Record<string, string> }>(
+      "/admin/staff",
+      { method: "POST", body: JSON.stringify(input) },
+      token
+    );
+  },
+  updateStaff(
+    token: string,
+    id: number,
+    input: {
+      name?: string;
+      email?: string;
+      phone?: string | null;
+      password?: string;
+      display_name?: string | null;
+      status?: string;
+      permissions?: string[];
+    }
+  ) {
+    return request<{ staff: StaffMember; modules: Record<string, string> }>(
+      `/admin/staff/${id}`,
+      { method: "PUT", body: JSON.stringify(input) },
+      token
+    );
+  },
+  suspendStaff(token: string, id: number) {
+    return request<{ staff: StaffMember }>(
+      `/admin/staff/${id}/suspend`,
+      { method: "POST" },
+      token
+    );
+  },
+  activateStaff(token: string, id: number) {
+    return request<{ staff: StaffMember }>(
+      `/admin/staff/${id}/activate`,
+      { method: "POST" },
+      token
+    );
+  },
   publicConfig() {
     return request<PublicConfig>("/public/config");
+  },
+  deploy(token: string) {
+    return request<DeployStatus>("/admin/deploy", {}, token);
   },
   settings(token: string) {
     return request<{
@@ -168,7 +334,7 @@ export const api = {
     body.append("file", file);
     body.append("kind", kind);
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1"}/admin/media`,
+      `${resolveApiBase()}/admin/media`,
       {
         method: "POST",
         headers: {

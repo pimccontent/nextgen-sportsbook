@@ -144,6 +144,9 @@ export default function FixtureDetailPage() {
     autoSettle: true,
   });
   const [durationPreset, setDurationPreset] = React.useState<DurationPreset>("short");
+  const [customScore, setCustomScore] = React.useState<
+    Record<string, { home: string; away: string; odds: string }>
+  >({});
   const [goals, setGoals] = React.useState<
     Array<{
       period: "1H" | "2H" | "ET1" | "ET2";
@@ -368,7 +371,9 @@ export default function FixtureDetailPage() {
     setStatus(action === "publish" ? "Published" : "Suspended");
   };
 
-  const addMarket = async (type: "double_chance" | "btts" | "over_under") => {
+  const addMarket = async (
+    type: "double_chance" | "btts" | "over_under" | "correct_score"
+  ) => {
     if (!token || !selected) return;
     try {
       const data = await fixturesAdminFetch<{ fixture: AdminFixture }>(
@@ -388,6 +393,37 @@ export default function FixtureDetailPage() {
       setStatus(`Added ${type}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Add market failed");
+    }
+  };
+
+  const addCustomCorrectScore = async (marketId: string) => {
+    if (!token || !selected) return;
+    const draft = customScore[marketId] ?? { home: "4", away: "0", odds: "18" };
+    const homeGoals = Number(draft.home);
+    const awayGoals = Number(draft.away);
+    const decimalOdds = Number(draft.odds);
+    try {
+      const data = await fixturesAdminFetch<{ fixture: AdminFixture }>(
+        token,
+        `/admin/fixtures/${selected.id}/markets/${encodeURIComponent(marketId)}/selections`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            home_goals: homeGoals,
+            away_goals: awayGoals,
+            decimal_odds: decimalOdds,
+          }),
+        }
+      );
+      setSelected(data.fixture);
+      setOddsDraft(oddsDraftFromFixture(data.fixture));
+      setStatus(`Added custom score ${homeGoals}-${awayGoals}`);
+      setCustomScore((prev) => ({
+        ...prev,
+        [marketId]: { home: String(homeGoals + 1), away: "0", odds: "22" },
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Add custom score failed");
     }
   };
 
@@ -1024,6 +1060,7 @@ export default function FixtureDetailPage() {
                 ["double_chance", "Double chance"],
                 ["btts", "BTTS"],
                 ["over_under", "O/U 2.5"],
+                ["correct_score", "Correct score"],
               ] as const
             ).map(([type, label]) => (
               <button
@@ -1102,6 +1139,80 @@ export default function FixtureDetailPage() {
                 </label>
               ))}
             </div>
+            {m.type === "correct_score" ? (
+              <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-[var(--border-default)] p-2">
+                <p className="w-full text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                  Add custom score (instead of “Other”)
+                </p>
+                <label className="text-[11px] text-[var(--text-tertiary)]">
+                  Home
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    className="mt-1 w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                    value={customScore[m.id]?.home ?? "4"}
+                    onChange={(e) =>
+                      setCustomScore((prev) => ({
+                        ...prev,
+                        [m.id]: {
+                          home: e.target.value,
+                          away: prev[m.id]?.away ?? "0",
+                          odds: prev[m.id]?.odds ?? "18",
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="text-[11px] text-[var(--text-tertiary)]">
+                  Away
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    className="mt-1 w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                    value={customScore[m.id]?.away ?? "0"}
+                    onChange={(e) =>
+                      setCustomScore((prev) => ({
+                        ...prev,
+                        [m.id]: {
+                          home: prev[m.id]?.home ?? "4",
+                          away: e.target.value,
+                          odds: prev[m.id]?.odds ?? "18",
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="text-[11px] text-[var(--text-tertiary)]">
+                  Odds
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={1.01}
+                    className="mt-1 w-20 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] px-2 py-1.5 text-sm"
+                    value={customScore[m.id]?.odds ?? "18"}
+                    onChange={(e) =>
+                      setCustomScore((prev) => ({
+                        ...prev,
+                        [m.id]: {
+                          home: prev[m.id]?.home ?? "4",
+                          away: prev[m.id]?.away ?? "0",
+                          odds: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-[11px] font-bold"
+                  onClick={() => void addCustomCorrectScore(m.id)}
+                >
+                  + Custom score
+                </button>
+              </div>
+            ) : null}
           </div>
         ))}
         <button

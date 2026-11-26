@@ -16,12 +16,15 @@ import {
   PanelsTopLeft,
   Settings,
   Shield,
+  UserRound,
   Users,
   Wallet,
   X,
 } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
+import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { hasModule, moduleForPath } from "@/lib/admin-permissions";
 import { api } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
 
@@ -29,6 +32,8 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  module?: string;
+  superAdminOnly?: boolean;
 };
 
 type NavGroup = {
@@ -43,18 +48,18 @@ const NAV_GROUPS: NavGroup[] = [
     id: "overview",
     label: "Overview",
     icon: LayoutDashboard,
-    items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard }],
+    items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" }],
   },
   {
     id: "sportsbook",
     label: "Sportsbook",
     icon: Activity,
     items: [
-      { href: "/fixtures", label: "Fixtures", icon: Activity },
-      { href: "/competitions", label: "Competitions", icon: Activity },
-      { href: "/booking-codes", label: "Booking codes", icon: Activity },
-      { href: "/settlement", label: "Settlement", icon: Gavel },
-      { href: "/banners", label: "Banners", icon: PanelsTopLeft },
+      { href: "/fixtures", label: "Fixtures", icon: Activity, module: "fixtures" },
+      { href: "/competitions", label: "Competitions", icon: Activity, module: "competitions" },
+      { href: "/booking-codes", label: "Booking codes", icon: Activity, module: "booking_codes" },
+      { href: "/settlement", label: "Settlement", icon: Gavel, module: "settlement" },
+      { href: "/banners", label: "Banners", icon: PanelsTopLeft, module: "banners" },
     ],
   },
   {
@@ -62,9 +67,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Customers",
     icon: Users,
     items: [
-      { href: "/customers", label: "Accounts", icon: Users },
-      { href: "/deposits", label: "Deposits", icon: Wallet },
-      { href: "/wallets", label: "Withdrawals", icon: Wallet },
+      { href: "/customers", label: "Accounts", icon: Users, module: "customers" },
+      { href: "/support", label: "Live support", icon: Users, module: "support" },
+      { href: "/deposits", label: "Deposits", icon: Wallet, module: "deposits" },
+      { href: "/wallets", label: "Withdrawals", icon: Wallet, module: "withdrawals" },
     ],
   },
   {
@@ -72,8 +78,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Partners",
     icon: Building2,
     items: [
-      { href: "/agents", label: "Agents", icon: Building2 },
-      { href: "/agent-payouts", label: "Agent payouts", icon: Wallet },
+      { href: "/agents", label: "Agents", icon: Building2, module: "agents" },
+      { href: "/agent-payouts", label: "Agent payouts", icon: Wallet, module: "agent_payouts" },
     ],
   },
   {
@@ -81,8 +87,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Administration",
     icon: Settings,
     items: [
-      { href: "/settings", label: "Settings", icon: Settings },
-      { href: "/audit", label: "Audit log", icon: Shield },
+      { href: "/settings", label: "Settings", icon: Settings, module: "settings" },
+      { href: "/staff", label: "Staff", icon: Shield, superAdminOnly: true },
+      { href: "/audit", label: "Audit log", icon: Shield, module: "audit" },
+      { href: "/account", label: "My account", icon: UserRound },
     ],
   },
 ];
@@ -95,8 +103,9 @@ function isActivePath(pathname: string, href: string) {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout: authLogout } = useAdminAuth();
+  const { user, token, logout: authLogout } = useAdminAuth();
   const isLogin = pathname === "/login";
+  const isSuperAdmin = Boolean(user?.is_super_admin || user?.role === "super_admin");
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -107,11 +116,34 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [brandName, setBrandName] = useState("NextGen");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [supportUnread, setSupportUnread] = useState(0);
+
+  const visibleGroups = useMemo(() => {
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.superAdminOnly) return isSuperAdmin;
+        if (!item.module) return true;
+        return hasModule(user, item.module);
+      }),
+    })).filter((group) => group.items.length > 0);
+  }, [user, isSuperAdmin]);
 
   useEffect(() => {
     setMobileOpen(false);
     setUserMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (isLogin || !user) return;
+    const mod = moduleForPath(pathname);
+    if (mod && !hasModule(user, mod)) {
+      router.replace("/account");
+    }
+    if ((pathname === "/staff" || pathname.startsWith("/staff/")) && !isSuperAdmin) {
+      router.replace("/account");
+    }
+  }, [pathname, user, isLogin, isSuperAdmin, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,19 +184,48 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setOpenGroups((prev) => {
       const next = { ...prev };
-      for (const group of NAV_GROUPS) {
+      for (const group of visibleGroups) {
         if (group.items.some((item) => isActivePath(pathname, item.href))) {
           next[group.id] = true;
         }
       }
       return next;
     });
-  }, [pathname]);
+  }, [pathname, visibleGroups]);
+
+  useEffect(() => {
+    if (!token || isLogin || !hasModule(user, "support")) {
+      setSupportUnread(0);
+      return;
+    }
+    let cancelled = false;
+    const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+    const load = () => {
+      void fetch(`${API}/admin/support/conversations?status=open`, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (!cancelled && json?.success) {
+            setSupportUnread(Number(json.data?.unreadTotal ?? 0));
+          }
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const id = window.setInterval(load, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [token, isLogin, pathname, user]);
 
   const pageTitle = useMemo(() => {
     if (pathname.startsWith("/agents/new")) return "Add agent";
     if (pathname.startsWith("/agents/") && pathname !== "/agents") return "Edit agent";
     if (pathname.startsWith("/fixtures/") && pathname !== "/fixtures") return "Edit fixture";
+    if (pathname.startsWith("/staff/new")) return "Add staff";
+    if (pathname.startsWith("/staff/") && pathname !== "/staff") return "Edit staff";
     for (const group of NAV_GROUPS) {
       for (const item of group.items) {
         if (isActivePath(pathname, item.href)) return item.label;
@@ -175,6 +236,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   const email = user?.email ?? "admin";
   const initials = email.slice(0, 2).toUpperCase();
+  const roleLabel = isSuperAdmin
+    ? "Super admin"
+    : user?.role === "admin"
+      ? "Admin"
+      : user?.role?.replace(/_/g, " ") ?? "Staff";
 
   function toggleGroup(id: string) {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -255,7 +321,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <nav className="app-sidebar-nav flex-1 overflow-y-auto px-2 py-3">
-            {NAV_GROUPS.map((group) => {
+            {visibleGroups.map((group) => {
               const GroupIcon = group.icon;
               const expanded = openGroups[group.id] ?? false;
               const groupActive = group.items.some((item) => isActivePath(pathname, item.href));
@@ -324,7 +390,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                             ].join(" ")}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {item.href === "/support" && supportUnread > 0 ? (
+                              <span className="rounded-full bg-[var(--action-primary)] px-1.5 text-[10px] font-bold text-[var(--action-primary-fg)]">
+                                {supportUnread > 99 ? "99+" : supportUnread}
+                              </span>
+                            ) : null}
                           </Link>
                         );
                       })}
@@ -345,7 +416,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               {!collapsed ? (
                 <>
                   <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{email}</p>
-                  <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">Super admin</p>
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{roleLabel}</p>
                 </>
               ) : (
                 <p className="text-[10px] font-bold text-[var(--accent)]">{initials}</p>
@@ -377,6 +448,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              {hasModule(user, "support") ? <NotificationBell /> : null}
               {maintenanceOn ? (
                 <span
                   className="status-pill status-pill--live"
@@ -443,7 +515,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                 </button>
                 {userMenuOpen ? (
-                  <div className="absolute right-0 mt-1.5 w-44 overflow-hidden rounded-md border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] shadow-lg">
+                  <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-md border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] shadow-lg">
+                    <div className="border-b border-[var(--border-soft)] px-3 py-2">
+                      <p className="truncate text-xs font-medium text-[var(--text-primary)]">{email}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{roleLabel}</p>
+                    </div>
+                    <Link
+                      href="/account"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-primary)]"
+                    >
+                      <UserRound className="h-3.5 w-3.5" />
+                      Account
+                    </Link>
                     <button
                       type="button"
                       onClick={logout}

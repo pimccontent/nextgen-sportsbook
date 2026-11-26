@@ -1,11 +1,10 @@
 # Single-VPS stack: Postgres + Redis + API + Customer + Admin + Agent (+ optional Caddy)
-# Usage: bash scripts/install-vps.sh --domain=example.com --email=ops@example.com
+# Default HTTPS URL map (URL_LAYOUT=path): see docs/architecture/URL_MAP.md
 #
-# With DOMAIN set (HTTPS via Caddy):
-#   Customer  https://DOMAIN
+#   Customer  https://DOMAIN/
+#   Agent     https://DOMAIN/agent
+#   API       https://DOMAIN/api/v1
 #   Admin     https://admin.DOMAIN
-#   Agent     https://agent.DOMAIN
-#   API       https://api.DOMAIN
 #
 # Without DOMAIN (IP / ports only):
 #   Customer  http://HOST:3000  Admin :3001  Agent :3002  API :8081
@@ -38,6 +37,7 @@ services:
       retries: 20
 
   api:
+    image: ${IMAGE_PREFIX:-ghcr.io/pimccontent}/nextgen-api:${IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: infrastructure/docker/Dockerfile.api.vps
@@ -47,6 +47,12 @@ services:
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8081}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
+      DEPLOY_URL_LAYOUT: ${URL_LAYOUT:-path}
+      DEPLOY_CUSTOMER_URL: ${DEPLOY_CUSTOMER_URL:-}
+      DEPLOY_ADMIN_URL: ${DEPLOY_ADMIN_URL:-}
+      DEPLOY_AGENT_URL: ${DEPLOY_AGENT_URL:-}
+      DEPLOY_API_URL: ${DEPLOY_API_URL:-}
+      DEPLOY_DOMAIN: ${DOMAIN:-}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -68,6 +74,7 @@ services:
         condition: service_healthy
 
   customer:
+    image: ${IMAGE_PREFIX:-ghcr.io/pimccontent}/nextgen-customer:${IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: infrastructure/docker/Dockerfile.next
@@ -75,6 +82,7 @@ services:
         APP_NAME: customer
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
         NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+        NEXT_PUBLIC_BASE_PATH: ""
     restart: unless-stopped
     environment:
       PORT: 3000
@@ -84,6 +92,7 @@ services:
       - api
 
   admin:
+    image: ${IMAGE_PREFIX:-ghcr.io/pimccontent}/nextgen-admin:${IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: infrastructure/docker/Dockerfile.next
@@ -91,6 +100,7 @@ services:
         APP_NAME: admin
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
         NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+        NEXT_PUBLIC_BASE_PATH: ""
     restart: unless-stopped
     environment:
       PORT: 3000
@@ -100,6 +110,7 @@ services:
       - api
 
   agent:
+    image: ${IMAGE_PREFIX:-ghcr.io/pimccontent}/nextgen-agent:${IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: infrastructure/docker/Dockerfile.next
@@ -107,6 +118,7 @@ services:
         APP_NAME: agent
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081/api/v1}
         NEXT_PUBLIC_CUSTOMER_ORIGIN: ${NEXT_PUBLIC_CUSTOMER_ORIGIN:-http://localhost:3000}
+        NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
     restart: unless-stopped
     environment:
       PORT: 3000
@@ -126,7 +138,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile.vps:/etc/caddy/Caddyfile:ro
+      - ${CADDYFILE:-./Caddyfile.vps}:/etc/caddy/Caddyfile:ro
       - nextgen_vps_caddy_data:/data
       - nextgen_vps_caddy_config:/config
     depends_on:

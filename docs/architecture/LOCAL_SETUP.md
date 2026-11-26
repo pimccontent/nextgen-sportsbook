@@ -4,10 +4,12 @@
 
 ```bash
 pnpm install
-pnpm dev:customer   # http://localhost:3000
-pnpm dev:admin      # http://localhost:3001
-pnpm dev:agent      # http://localhost:3002
+pnpm dev:customer   # http://localhost:3100
+pnpm dev:admin      # http://localhost:3101
+pnpm dev:agent      # http://localhost:3102
 ```
+
+Dev ports use **3100–3102** because Windows Hyper-V / excluded port ranges often block **3000–3083** (`EACCES`).
 
 ## API + data stores
 

@@ -18,9 +18,11 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
 
   const authPage =
     pathname === "/login" || pathname === "/register" || pathname === "/forgot-password";
+  const hideSlip =
+    authPage || pathname === "/support" || pathname.startsWith("/support/");
 
   React.useEffect(() => {
-    if (authPage) {
+    if (hideSlip) {
       setSheetOpen(false);
       return;
     }
@@ -40,11 +42,17 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname);
     }
-  }, [pathname, authPage, searchParams, openSlipNonce, consumeOpenSlipRequest, router]);
+  }, [pathname, hideSlip, searchParams, openSlipNonce, consumeOpenSlipRequest, router]);
 
   return (
     <div className="mx-auto flex max-w-[1440px]">
-      <main className="min-w-0 flex-1 pb-[7.5rem] md:pb-8">
+      <main
+        className={[
+          "min-w-0 flex-1 md:pb-8",
+          hideSlip && !authPage ? "pb-20" : "pb-[7.5rem]",
+          authPage ? "pb-8" : "",
+        ].join(" ")}
+      >
         {session ? (
           <div className="border-b border-[var(--ng-accent)]/40 bg-[color-mix(in_srgb,var(--ng-accent)_12%,transparent)] px-3 py-2 text-center text-xs sm:px-4">
             <span className="font-semibold text-[var(--ng-text)]">
@@ -62,7 +70,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {!authPage ? (
+      {!hideSlip ? (
         <>
           <BetSlipPanel />
           <BetSlipPeekBar
