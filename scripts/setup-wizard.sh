@@ -18,6 +18,12 @@ INSTALL_DOCKER="${INSTALL_DOCKER:-0}"
 SKIP_DNS="${SKIP_DNS:-0}"
 USE_PREBUILT="${USE_PREBUILT_IMAGES:-}"
 
+# When launched via `curl | bash`, stdin is the script pipe — read prompts from the TTY.
+TTY_IN="/dev/tty"
+if [[ ! -r "$TTY_IN" ]]; then
+  TTY_IN="/dev/stdin"
+fi
+
 prompt() {
   local var="$1" label="$2" def="${3:-}"
   local cur="${!var:-}"
@@ -25,10 +31,10 @@ prompt() {
     return
   fi
   if [[ -n "$def" ]]; then
-    read -r -p "${label} [${def}]: " cur
+    read -r -p "${label} [${def}]: " cur <"$TTY_IN" || true
     cur="${cur:-$def}"
   else
-    read -r -p "${label}: " cur
+    read -r -p "${label}: " cur <"$TTY_IN" || true
   fi
   printf -v "$var" '%s' "$cur"
 }
@@ -37,7 +43,7 @@ prompt DOMAIN "Apex domain (customer + agent + api paths)"
 prompt ACME_EMAIL "Let's Encrypt email"
 prompt URL_LAYOUT "URL layout (path=recommended, hosts=legacy)" "path"
 if [[ -z "$USE_PREBUILT" ]]; then
-  read -r -p "Use prebuilt images if available? [y/N]: " pb
+  read -r -p "Use prebuilt images if available? [y/N]: " pb <"$TTY_IN" || true
   case "${pb:-n}" in
     y|Y|yes|YES) USE_PREBUILT=1 ;;
     *) USE_PREBUILT=0 ;;
@@ -46,6 +52,8 @@ fi
 
 if [[ -z "$DOMAIN" || -z "$ACME_EMAIL" ]]; then
   echo "Domain and email are required."
+  echo "Tip: pass them on the command line so curl|bash does not need prompts:"
+  echo "  bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker"
   exit 1
 fi
 
@@ -95,7 +103,7 @@ fi
 if [[ "$SKIP_DNS" != "1" ]]; then
   chmod +x "$ROOT/scripts/check-dns.sh" || true
   if ! EXPECTED_IP="$PUB_IP" bash "$ROOT/scripts/check-dns.sh" --domain="$DOMAIN" --layout="$URL_LAYOUT"; then
-    read -r -p "DNS not ready. Continue anyway? [y/N]: " cont
+    read -r -p "DNS not ready. Continue anyway? [y/N]: " cont <"$TTY_IN" || true
     case "${cont:-n}" in
       y|Y|yes|YES) echo "Continuing — certs may fail until DNS propagates." ;;
       *) echo "Aborted. Fix DNS and re-run."; exit 1 ;;
