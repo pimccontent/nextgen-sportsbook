@@ -135,8 +135,10 @@ sync_repo() {
   echo "Syncing $dir → origin/${BRANCH}"
   git -C "$dir" remote set-url origin "$REPO_URL" 2>/dev/null || true
   git -C "$dir" fetch --depth 1 origin "$BRANCH"
-  git -C "$dir" checkout -B "$BRANCH" "origin/$BRANCH"
+  # Discard any local drift (common after failed/partial installs).
+  git -C "$dir" clean -fd
   git -C "$dir" reset --hard "origin/$BRANCH"
+  git -C "$dir" checkout -f -B "$BRANCH" "origin/$BRANCH"
   git -C "$dir" clean -fd
   return 0
 }
