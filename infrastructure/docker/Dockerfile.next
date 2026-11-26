@@ -3,7 +3,7 @@ ARG NODE_VERSION=22-bookworm-slim
 FROM node:${NODE_VERSION} AS deps
 WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps ./apps
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
