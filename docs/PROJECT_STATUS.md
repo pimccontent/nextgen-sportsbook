@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-26 (path-layout VPS deploy + Domain & deploy admin panel)
+Last updated: 2026-11-26 (UI polish, draft-first fixtures, % commissions, Codecanyon guide)
 
 ## Current phase
 Platform control expansion (match scripts, booking codes, competitions/feeds, bonus wallet, PIN reset, legal)
@@ -9,6 +9,12 @@ Platform control expansion (match scripts, booking codes, competitions/feeds, bo
 In progress — single-brand white-label sportsbook; sandbox/test money only until independently licensed
 
 ## Completed this pass
+- **UI polish:** shared `InfoTip` (admin/customer/agent); stripped essay copy from settings and list pages; short labels + hover tips
+- **Fixtures draft-first:** tenant `auto_publish` default **off**; publish/bulk publish set publication without `admin_locked`; lock only on admin edits (schedule, scores, odds, markets, script, custom create); unlocked fixtures accept provider score/status updates on sync; catalogue refresh respects `auto_publish`
+- **Percentage UX:** Admin Promotions/Commissions show `%` (stored as bps); Agent commissions list shows `2%` not `200 bps`; flat amounts stay GHS
+- **API base:** admin pages/components use `resolveApiBase()` (path-layout + `admin.` host aware) instead of hardcoded localhost
+- **Fixture labels:** Draft / Published / Suspended in filters and tables
+- **Install + admin guide:** Codecanyon-style HTML/PDF under `docs/architecture/NextGen-Live-Server-Installation.*`
 - **Full match scripts:** per-half durations, HT/FT/ET scores, penalties outcome, arm → auto-start at kickoff ([MatchScriptService](apps/api/app/Services/MatchScriptService.php), admin fixture script UI)
 - **Fixture edit UX simplified:** schedule → duration preset + FT score → **Save & arm**; advanced/manual live collapsed
 - **Booking codes:** admin/agent open customer slip builder (`?booking_builder=1#op=…`) → Save for code; public list/load; customer lobby **Betting codes** + slip Load; agent UI on Commissions (not bottom nav)

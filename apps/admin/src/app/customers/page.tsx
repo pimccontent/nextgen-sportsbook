@@ -55,9 +55,6 @@ export default function CustomersPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Customers" />
-      <p className="text-xs text-[var(--text-tertiary)]">
-        Preview list — wire to identity API next.
-      </p>
 
       <div className="admin-card overflow-x-auto">
         <table className="admin-table">

@@ -621,7 +621,14 @@ export default function FixtureDetailPage() {
             {selected.home} vs {selected.away}
           </h1>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-            {selected.competition} · {selected.status} · {selected.publicationState}
+            {selected.competition} · {selected.status} ·{" "}
+            {selected.publicationState === "draft"
+              ? "Draft"
+              : selected.publicationState === "published"
+                ? "Published"
+                : selected.publicationState === "suspended"
+                  ? "Suspended"
+                  : selected.publicationState}
             {scriptStatus !== "none" ? ` · script ${scriptStatus}` : ""}
           </p>
         </div>

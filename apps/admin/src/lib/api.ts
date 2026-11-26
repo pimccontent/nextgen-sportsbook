@@ -1,4 +1,4 @@
-function resolveApiBase(): string {
+export function resolveApiBase(): string {
   const fromEnv = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim().replace(/\/$/, "");
   if (fromEnv && fromEnv !== "auto") {
     return fromEnv;

@@ -25,7 +25,7 @@ import { AdminGate } from "@/components/AdminGate";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { hasModule, moduleForPath } from "@/lib/admin-permissions";
-import { api } from "@/lib/api";
+import { api, resolveApiBase } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
 
 type NavItem = {
@@ -199,9 +199,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       return;
     }
     let cancelled = false;
-    const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
     const load = () => {
-      void fetch(`${API}/admin/support/conversations?status=open`, {
+      void fetch(`${resolveApiBase()}/admin/support/conversations?status=open`, {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       })
         .then((r) => r.json())

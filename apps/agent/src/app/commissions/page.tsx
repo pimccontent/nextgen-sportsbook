@@ -201,7 +201,8 @@ export default function AgentCommissionsPage() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-[var(--ng-muted)]">
-                Basis GHS {(e.basisMinor / 100).toFixed(2)} · {e.rateBps} bps
+                Basis GHS {(e.basisMinor / 100).toFixed(2)} ·{" "}
+                {(e.rateBps / 100).toFixed(e.rateBps % 100 === 0 ? 0 : 2)}%
                 {e.depositReference ? ` · ${e.depositReference}` : ""}
                 {e.holdUntil && e.status === "pending"
                   ? ` · hold until ${new Date(e.holdUntil).toLocaleDateString("en-GB")}`

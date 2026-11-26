@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+import { resolveApiBase } from "@/lib/api";
 
 export type AgentRow = {
   id: number;
@@ -17,14 +17,14 @@ async function parse<T>(res: Response): Promise<T> {
 }
 
 export async function listAgents(token: string) {
-  const res = await fetch(`${API}/admin/agents`, {
+  const res = await fetch(`${resolveApiBase()}/admin/agents`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   return parse<{ agents: AgentRow[] }>(res);
 }
 
 export async function getAgent(token: string, id: number) {
-  const res = await fetch(`${API}/admin/agents/${id}`, {
+  const res = await fetch(`${resolveApiBase()}/admin/agents/${id}`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   return parse<{ agent: AgentRow }>(res);
@@ -34,7 +34,7 @@ export async function createAgent(
   token: string,
   body: Record<string, unknown>
 ) {
-  const res = await fetch(`${API}/admin/agents`, {
+  const res = await fetch(`${resolveApiBase()}/admin/agents`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -51,7 +51,7 @@ export async function updateAgent(
   id: number,
   body: Record<string, unknown>
 ) {
-  const res = await fetch(`${API}/admin/agents/${id}`, {
+  const res = await fetch(`${resolveApiBase()}/admin/agents/${id}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -64,7 +64,7 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(token: string, id: number) {
-  const res = await fetch(`${API}/admin/agents/${id}`, {
+  const res = await fetch(`${resolveApiBase()}/admin/agents/${id}`, {
     method: "DELETE",
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });

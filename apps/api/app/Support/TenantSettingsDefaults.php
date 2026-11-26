@@ -111,7 +111,7 @@ final class TenantSettingsDefaults
                 'default_draw_odds' => 3.2,
                 'default_away_odds' => 3.4,
                 // Customer lobby only shows published fixtures — sync should publish by default.
-                'auto_publish' => true,
+                'auto_publish' => false,
             ],
             'betting' => [
                 'min_stake_minor' => 100,

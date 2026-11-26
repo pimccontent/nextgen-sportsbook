@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 import { fixturesAdminFetch, type AdminFixture } from "@/lib/fixtures-admin";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -31,20 +32,19 @@ export default function AdminOverviewPage() {
   React.useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
-
+    
     async function load() {
       setLoading(true);
       try {
         const [fx, betsRes, wdRes, agRes] = await Promise.all([
           fixturesAdminFetch<{ fixtures: AdminFixture[] }>(token!, "/admin/fixtures"),
-          fetch(`${API}/admin/settlement/bets`, {
+          fetch(`${resolveApiBase()}/admin/settlement/bets`, {
             headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
           }).then((r) => r.json()),
-          fetch(`${API}/admin/withdrawals`, {
+          fetch(`${resolveApiBase()}/admin/withdrawals`, {
             headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
           }).then((r) => r.json()),
-          fetch(`${API}/admin/agents`, {
+          fetch(`${resolveApiBase()}/admin/agents`, {
             headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
           }).then((r) => r.json()),
         ]);

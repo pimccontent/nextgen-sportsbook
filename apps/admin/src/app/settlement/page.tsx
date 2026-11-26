@@ -6,9 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { TableActions } from "@/components/ui/TableActions";
 import { btnGhostClass, btnPrimaryClass } from "@/components/ui/FormField";
 import { useAdminAuth } from "@/lib/auth-context";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+import { resolveApiBase } from "@/lib/api";
 
 type Bet = {
   id: string;
@@ -32,7 +30,7 @@ export default function SettlementPage() {
 
   const load = React.useCallback(async () => {
     if (!token) return;
-    const res = await fetch(`${API_BASE}/admin/settlement/bets`, {
+    const res = await fetch(`${resolveApiBase()}/admin/settlement/bets`, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
@@ -57,7 +55,7 @@ export default function SettlementPage() {
         results[s.selectionId] = outcome === "won" ? "won" : "lost";
       }
       const res = await fetch(
-        `${API_BASE}/admin/settlement/bets/${encodeURIComponent(bet.id)}`,
+        `${resolveApiBase()}/admin/settlement/bets/${encodeURIComponent(bet.id)}`,
         {
           method: "POST",
           headers: {

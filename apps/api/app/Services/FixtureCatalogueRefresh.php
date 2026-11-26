@@ -2,9 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\EventStatus;
-use App\Enums\PublicationState;
-use App\Models\SportEvent;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -15,8 +12,10 @@ use Illuminate\Support\Facades\Log;
  */
 final class FixtureCatalogueRefresh
 {
-    public function __construct(private readonly SportsIngestionService $ingestion)
-    {
+    public function __construct(
+        private readonly SportsIngestionService $ingestion,
+        private readonly TenantSettingsService $settings,
+    ) {
     }
 
     /**
@@ -32,18 +31,19 @@ final class FixtureCatalogueRefresh
             try {
                 set_time_limit(120);
                 $tenant = Tenant::default();
+                $sports = $this->settings->getGroup($tenant, 'sports_data')['payload'];
+                $autoPublish = (bool) ($sports['auto_publish'] ?? false);
 
                 // Customer refresh prioritises obscure catalogue reliability over live HTTP.
+                // Respect tenant auto_publish — never force-publish drafts in the background.
                 $this->ingestion->sync($tenant, [
                     'sync_top_leagues' => false,
                     'sync_other_leagues' => false,
                     'sync_obscure_leagues' => true,
                     'obscure_live_sync' => false,
-                    'auto_publish' => true,
+                    'auto_publish' => $autoPublish,
                     'provider' => 'embedded_world',
                 ]);
-
-                $this->publishUpcomingDrafts();
             } catch (\Throwable $e) {
                 Log::warning('customer fixture catalogue refresh failed', [
                     'error' => $e->getMessage(),
@@ -51,17 +51,5 @@ final class FixtureCatalogueRefresh
                 Cache::forget('fixtures.catalogue.refresh');
             }
         })->afterResponse();
-    }
-
-    public function publishUpcomingDrafts(): int
-    {
-        return SportEvent::query()
-            ->where('publication_state', PublicationState::Draft)
-            ->where('status', EventStatus::Upcoming)
-            ->where('kickoff_at', '>', now()->subDay())
-            ->update([
-                'publication_state' => PublicationState::Published,
-                'published_at' => now(),
-            ]);
     }
 }

@@ -4,6 +4,7 @@ import * as React from "react";
 import { api, type DeployStatus, type SettingsGroup } from "@/lib/api";
 import { useAdminAuth } from "@/lib/auth-context";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { InfoTip } from "@/components/ui/InfoTip";
 
 const TABS = [
   { id: "operations", label: "Operations" },
@@ -166,13 +167,10 @@ export default function SettingsPage() {
         <div className="admin-card space-y-4 p-4 sm:p-5">
           {tab === "deploy" && (
             <div className="space-y-4 text-sm text-[var(--text-secondary)]">
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4">
-                <p className="font-semibold text-[var(--text-primary)]">Domain &amp; deploy</p>
-                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                  Read-only topology from the VPS environment. Rebuild/update on the server with the
-                  update command below — this panel does not push production changes by itself.
-                </p>
-              </div>
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                Domain &amp; deploy
+                <InfoTip text="Read-only VPS topology. Rebuild on the server with the update command below — this panel does not push production by itself." />
+              </h2>
               {!deploy ? (
                 <p className="text-xs text-[var(--text-tertiary)]">No deploy metadata yet.</p>
               ) : (
@@ -260,15 +258,10 @@ export default function SettingsPage() {
 
           {tab === "operations" && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                <p className="font-semibold text-[var(--text-primary)]">Environment &amp; maintenance</p>
-                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                  Switching to Live updates payments mode and public banners. It does{" "}
-                  <strong className="text-[var(--text-primary)]">not</strong> by itself enable real
-                  Paystack HTTP rails — see go-live checklist. Maintenance blocks Customer and Agent
-                  apps/APIs; Admin stays available.
-                </p>
-              </div>
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                Environment &amp; maintenance
+                <InfoTip text="Live updates payments mode and banners but does not alone enable Paystack HTTP rails — see go-live checklist. Maintenance blocks Customer and Agent; Admin stays up." />
+              </h2>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Select
@@ -281,7 +274,8 @@ export default function SettingsPage() {
                   }}
                 />
                 <Toggle
-                  label="Show sandbox banner on Customer/Agent (never shown in Live)"
+                  label="Sandbox banner (Customer/Agent)"
+                  tip="Shown in sandbox only; hidden when environment is Live."
                   checked={Boolean(draft.show_environment_banner)}
                   onChange={(v) => setField("show_environment_banner", v)}
                 />
@@ -337,13 +331,10 @@ export default function SettingsPage() {
 
           {tab === "support_chat" && (
             <div className="space-y-5">
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                <p className="font-semibold text-[var(--text-primary)]">In-app live support</p>
-                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                  Controls the customer chat page, floating widget, greeting, business hours, and
-                  canned replies used in Admin → Live support.
-                </p>
-              </div>
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                In-app live support
+                <InfoTip text="Customer chat page, widget, greeting, hours, and canned replies — used in Admin → Live support." />
+              </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Toggle
                   label="Enable live chat"
@@ -356,7 +347,8 @@ export default function SettingsPage() {
                   onChange={(v) => setField("widget_enabled", v)}
                 />
                 <Toggle
-                  label="Allow customer to reopen a closed chat (otherwise they must start a new chat)"
+                  label="Allow reopening closed chats"
+                  tip="When off, customers must start a new chat instead of reopening a closed thread."
                   checked={draft.allow_customer_reopen !== false}
                   onChange={(v) => setField("allow_customer_reopen", v)}
                 />
@@ -366,7 +358,8 @@ export default function SettingsPage() {
                   onChange={(v) => setField("sound_enabled", v)}
                 />
                 <Toggle
-                  label="Enter to send (Shift+Enter for new line)"
+                  label="Enter to send"
+                  tip="Shift+Enter inserts a new line instead of sending."
                   checked={draft.enter_to_send !== false}
                   onChange={(v) => setField("enter_to_send", v)}
                 />
@@ -451,16 +444,10 @@ export default function SettingsPage() {
 
           {tab === "customer_messaging" && (
             <div className="space-y-5">
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                <p className="font-semibold text-[var(--text-primary)]">
-                  Customer popups &amp; notifications
-                </p>
-                <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                  Control the modal and toast shown on the customer app. Hero slides stay under{" "}
-                  <strong className="text-[var(--text-primary)]">Banners</strong>. Change the
-                  popup/toast ID after editing copy so returning visitors see the new message.
-                </p>
-              </div>
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                Customer popups &amp; notifications
+                <InfoTip text="Modal and toast on the customer app. Hero slides are under Banners. Bump popup/toast ID after copy changes so returning visitors see the update." />
+              </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Toggle
                   label="Show popup modal"
@@ -534,13 +521,10 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="border-t border-[var(--border-soft)] pt-4 space-y-3">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
                   Win / withdrawal activity feed
-                </p>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Rotating customer lobby cards. Synthetic items always show the illustrative
-                  label. Use responsibly — misleading win claims may be restricted by regulation.
-                </p>
+                  <InfoTip text="Rotating lobby toasts. Synthetic items use the illustrative label. Misleading win claims may be restricted by regulation." />
+                </h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Toggle
                     label="Enable activity feed"
@@ -607,6 +591,10 @@ export default function SettingsPage() {
 
           {tab === "branding" && (
             <div className="space-y-6">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                Branding &amp; themes
+                <InfoTip text="Site identity and day/night colors for the customer app (including chat). Live chat toggles are on the Live chat tab." />
+              </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field
                   label="Display name"
@@ -642,13 +630,6 @@ export default function SettingsPage() {
                   value={String(draft.support_phone ?? "")}
                   onChange={(v) => setField("support_phone", v)}
                 />
-              </div>
-
-              <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-panel-elevated)] p-3 text-xs text-[var(--text-tertiary)]">
-                Live chat enablement (including Enter-to-send) is under the{" "}
-                <strong className="text-[var(--text-primary)]">Live chat</strong> tab. System colors
-                below drive the entire customer app for day and night themes, including chat panels
-                and input fields.
               </div>
 
               {(["day", "night"] as const).map((mode) => {
@@ -917,10 +898,10 @@ export default function SettingsPage() {
 
           {tab === "promotions" && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <p className="sm:col-span-2 text-xs text-[var(--text-tertiary)]">
-                Bonuses credit the segregated bonus wallet. Winnings from bonus-funded stakes
-                settle to cash. Withdrawals remain cash-only.
-              </p>
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <h3 className="text-sm font-semibold">Promotions</h3>
+                <InfoTip text="Bonuses credit the segregated bonus wallet. Winnings from bonus-funded stakes settle to cash. Withdrawals remain cash-only. Enter percents as whole numbers (10 = 10%)." />
+              </div>
               <Toggle
                 label="Top-up bonus enabled"
                 checked={Boolean(draft.deposit_bonus_enabled)}
@@ -949,14 +930,14 @@ export default function SettingsPage() {
                   onChangeMinor={(v) => setField("deposit_bonus_fixed_minor", v)}
                 />
               ) : (
-                <NumberField
-                  label="Top-up bonus (basis points, 1000 = 10%)"
-                  value={Number(draft.deposit_bonus_percent_bps ?? 0)}
-                  onChange={(v) => setField("deposit_bonus_percent_bps", v)}
+                <PercentField
+                  label="Top-up bonus"
+                  bps={Number(draft.deposit_bonus_percent_bps ?? 0)}
+                  onChangeBps={(v) => setField("deposit_bonus_percent_bps", v)}
                 />
               )}
               <CedisField
-                label="Top-up bonus max (Ghana Cedis)"
+                label="Top-up bonus max (GHS)"
                 minor={Number(draft.deposit_bonus_max_minor ?? 0)}
                 onChangeMinor={(v) => setField("deposit_bonus_max_minor", v)}
               />
@@ -1001,14 +982,14 @@ export default function SettingsPage() {
                   onChangeMinor={(v) => setField("win_bonus_fixed_minor", v)}
                 />
               ) : (
-                <NumberField
-                  label="Win bonus (basis points of net win)"
-                  value={Number(draft.win_bonus_percent_bps ?? 0)}
-                  onChange={(v) => setField("win_bonus_percent_bps", v)}
+                <PercentField
+                  label="Win bonus"
+                  bps={Number(draft.win_bonus_percent_bps ?? 0)}
+                  onChangeBps={(v) => setField("win_bonus_percent_bps", v)}
                 />
               )}
               <CedisField
-                label="Win bonus max (Ghana Cedis)"
+                label="Win bonus max (GHS)"
                 minor={Number(draft.win_bonus_max_minor ?? 0)}
                 onChangeMinor={(v) => setField("win_bonus_max_minor", v)}
               />
@@ -1067,10 +1048,10 @@ export default function SettingsPage() {
                 options={["turnover", "ngr"]}
                 onChange={(v) => setField("basis", v)}
               />
-              <NumberField
-                label="Rate (basis points)"
-                value={Number(draft.rate_bps ?? 0)}
-                onChange={(v) => setField("rate_bps", v)}
+              <PercentField
+                label="Commission rate"
+                bps={Number(draft.rate_bps ?? 0)}
+                onChangeBps={(v) => setField("rate_bps", v)}
               />
               <Select
                 label="Period"
@@ -1084,7 +1065,7 @@ export default function SettingsPage() {
                 onChange={(v) => setField("hold_days", v)}
               />
               <CedisField
-                label="Min commission payout (Ghana Cedis)"
+                label="Min commission payout (GHS)"
                 minor={Number(draft.min_withdrawal_minor ?? 0)}
                 onChangeMinor={(v) => setField("min_withdrawal_minor", v)}
               />
@@ -1182,6 +1163,10 @@ export default function SettingsPage() {
 
           {tab === "sports_data" && (
             <div className="space-y-4">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+                Sports data providers
+                <InfoTip text="Free options: mock, embedded_world, openligadb (no key), thesportsdb (demo key 123, rate-limited), football-data.org (your free token). No paid API billing — you control odds, publication, and results after import." />
+              </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Select
                   label="Provider"
@@ -1221,12 +1206,13 @@ export default function SettingsPage() {
                   onChange={(v) => setField("sync_top_leagues", v)}
                 />
                 <Toggle
-                  label="Sync other / mid-tier leagues (provider list)"
+                  label="Sync mid-tier leagues"
+                  tip="Uses the provider’s league list."
                   checked={Boolean(draft.sync_other_leagues)}
                   onChange={(v) => setField("sync_other_leagues", v)}
                 />
                 <Toggle
-                  label="Always sync obscure worldwide leagues"
+                  label="Sync obscure leagues"
                   checked={draft.sync_obscure_leagues !== false}
                   onChange={(v) => setField("sync_obscure_leagues", v)}
                 />
@@ -1236,24 +1222,12 @@ export default function SettingsPage() {
                   onChange={(v) => setField("obscure_live_sync", v)}
                 />
                 <Toggle
-                  label="Auto-publish imported fixtures"
+                  label="Auto-publish imports"
+                  tip="Off by default: sync creates drafts until you publish. On: new/updated unlocked fixtures go live immediately. Publishing alone does not lock a fixture — provider updates continue until you edit schedule, scores, odds, markets, or script."
                   checked={Boolean(draft.auto_publish)}
                   onChange={(v) => setField("auto_publish", v)}
                 />
               </div>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
-                Free fixtures (no paid plan required): <strong>embedded_world</strong> (curated
-                obscure leagues offline; optional TheSportsDB live sync),{" "}
-                <strong>openligadb</strong> (no API key),{" "}
-                <strong>thesportsdb</strong> (free demo key <code className="font-mono">123</code> —
-                strict rate limits; sync spaces requests and retries 429s),{" "}
-                <strong>football-data.org</strong> (free token you register yourself), or{" "}
-                <strong>mock</strong> built-in catalogue. If TheSportsDB returns HTTP 429, wait a
-                minute and retry, or use <strong>embedded_world</strong> / <strong>mock</strong>.
-                Live sync for <strong>embedded_world</strong> falls back to the catalogue per league
-                if empty or rate-limited. Nothing in this stack secretly bills a paid sports API.
-                Admin still controls odds, publication, and results after import.
-              </p>
               <div className="rounded-lg border border-dashed border-[var(--border-soft)] p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
                   Sports API key (write-only)
@@ -1583,6 +1557,39 @@ function NumberField({
   );
 }
 
+/** Edit percent (10 = 10%); persist as integer basis points (×100). */
+function PercentField({
+  label,
+  bps,
+  onChangeBps,
+}: {
+  label: string;
+  bps: number;
+  onChangeBps: (v: number) => void;
+}) {
+  const percent = (Number.isFinite(bps) ? bps : 0) / 100;
+  return (
+    <label className={labelClass}>
+      {label}
+      <div className="relative">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={Number.isFinite(percent) ? percent : 0}
+          onChange={(e) =>
+            onChangeBps(Math.round(Number(e.target.value || 0) * 100))
+          }
+          className={`${inputClass} pr-8`}
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)]">
+          %
+        </span>
+      </div>
+    </label>
+  );
+}
+
 /** Edit money in Ghana Cedis; persist as integer pesewas (×100). */
 function CedisField({
   label,
@@ -1638,10 +1645,12 @@ function Select({
 
 function Toggle({
   label,
+  tip,
   checked,
   onChange,
 }: {
   label: string;
+  tip?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -1651,9 +1660,12 @@ function Toggle({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4"
+        className="h-4 w-4 shrink-0"
       />
-      {label}
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {tip ? <InfoTip text={tip} /> : null}
+      </span>
     </label>
   );
 }

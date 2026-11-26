@@ -57,6 +57,7 @@ export default function StaffPage() {
     <div className="space-y-5">
       <PageHeader
         title="Staff"
+        tip="Super Admin only. Assign module permissions per staff account."
         actions={
           <Link href="/staff/new" className={btnPrimaryClass}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -64,9 +65,6 @@ export default function StaffPage() {
           </Link>
         }
       />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Super Admin only. Assign module permissions to limit what each staff account can access.
-      </p>
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <div className="admin-card overflow-x-auto">

@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+import { resolveApiBase } from "@/lib/api";
 
 export type AdminFixture = {
   id: string;
@@ -74,7 +74,7 @@ export async function fixturesAdminFetch<T = unknown>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${resolveApiBase()}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",

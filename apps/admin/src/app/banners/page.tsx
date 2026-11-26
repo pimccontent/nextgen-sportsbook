@@ -124,6 +124,7 @@ export default function BannersPage() {
     <div className="space-y-5">
       <PageHeader
         title="Banners"
+        tip="Customer lobby hero slides."
         actions={
           <button type="button" className={btnPrimaryClass} onClick={openCreate}>
             <Plus className="mr-1.5 inline h-3.5 w-3.5" />
@@ -131,9 +132,6 @@ export default function BannersPage() {
           </button>
         }
       />
-      <p className="-mt-3 text-sm text-[var(--text-tertiary)]">
-        Hero slider slides on the customer lobby.
-      </p>
 
       {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}

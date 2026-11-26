@@ -367,16 +367,20 @@ final class FixturesAdminController
         if (isset($data['home_name'])) {
             $event->home_name_override = $data['home_name'];
             $event->homeTeam?->update(['name' => $data['home_name']]);
+            $event->admin_locked = true;
         }
         if (isset($data['away_name'])) {
             $event->away_name_override = $data['away_name'];
             $event->awayTeam?->update(['name' => $data['away_name']]);
+            $event->admin_locked = true;
         }
         if (isset($data['home_short'])) {
             $event->home_short_override = $data['home_short'];
+            $event->admin_locked = true;
         }
         if (isset($data['away_short'])) {
             $event->away_short_override = $data['away_short'];
+            $event->admin_locked = true;
         }
         $scheduleChanged = false;
         if (isset($data['kickoff_at'])) {
@@ -407,23 +411,33 @@ final class FixturesAdminController
                 $event->clock_started_at = null;
             }
         }
+        $liveEdited = false;
         if (isset($data['status'])) {
             $event->status = EventStatus::from($data['status']);
+            $liveEdited = true;
         }
         if (array_key_exists('period', $data)) {
             $event->period = $data['period'];
+            $liveEdited = true;
         }
         if (array_key_exists('minute', $data)) {
             $event->minute = $data['minute'];
+            $liveEdited = true;
         }
         if (array_key_exists('extra_time_minute', $data)) {
             $event->extra_time_minute = $data['extra_time_minute'];
+            $liveEdited = true;
         }
         if (array_key_exists('score_home', $data)) {
             $event->score_home = $data['score_home'];
+            $liveEdited = true;
         }
         if (array_key_exists('score_away', $data)) {
             $event->score_away = $data['score_away'];
+            $liveEdited = true;
+        }
+        if ($liveEdited) {
+            $event->admin_locked = true;
         }
         if (isset($data['publication_state'])) {
             $event->publication_state = PublicationState::from($data['publication_state']);
@@ -670,6 +684,9 @@ final class FixturesAdminController
             return ApiResponse::error($e->getMessage(), 422);
         }
 
+        $event->admin_locked = true;
+        $event->save();
+
         $this->audit->log($request->user(), 'fixture.market_add', $request, [
             'public_id' => $id,
             'type' => $data['type'],
@@ -809,16 +826,38 @@ final class FixturesAdminController
 
     public function publish(Request $request, string $id): JsonResponse
     {
-        $request->merge(['publication_state' => 'published', 'admin_locked' => true]);
-
-        return $this->update($request, $id);
+        return $this->updatePublicationOnly($request, $id, PublicationState::Published);
     }
 
     public function suspend(Request $request, string $id): JsonResponse
     {
-        $request->merge(['publication_state' => 'suspended', 'admin_locked' => true]);
+        return $this->updatePublicationOnly($request, $id, PublicationState::Suspended);
+    }
 
-        return $this->update($request, $id);
+    private function updatePublicationOnly(Request $request, string $id, PublicationState $state): JsonResponse
+    {
+        $event = $this->find($id);
+        if (! $event) {
+            return ApiResponse::error('Fixture not found', 404);
+        }
+
+        $event->publication_state = $state;
+        if ($state === PublicationState::Published) {
+            $event->published_at = now();
+            $event->suspended_at = null;
+        }
+        if ($state === PublicationState::Suspended) {
+            $event->suspended_at = now();
+        }
+        $event->save();
+
+        $this->audit->log($request->user(), 'fixture.'.$state->value, $request, [
+            'public_id' => $id,
+        ], SportEvent::class, $event->id);
+
+        return ApiResponse::success([
+            'fixture' => $this->detail($event->fresh(['competition', 'homeTeam', 'awayTeam', 'markets.selections'])),
+        ], 'Fixture '.$state->value);
     }
 
     public function destroy(Request $request, string $id): JsonResponse
@@ -889,7 +928,7 @@ final class FixturesAdminController
             }
 
             $event->publication_state = $state;
-            $event->admin_locked = true;
+            // Publication changes alone do not lock provider-managed fixtures.
             if ($state === PublicationState::Published) {
                 $event->published_at = now();
                 $event->suspended_at = null;

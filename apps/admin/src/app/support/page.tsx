@@ -6,8 +6,7 @@ import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { btnGhostClass, btnPrimaryClass, fieldClass } from "@/components/ui/FormField";
 import { useAdminAuth } from "@/lib/auth-context";
-
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+import { resolveApiBase } from "@/lib/api";
 
 const EMOJIS = [
   "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎",
@@ -228,7 +227,7 @@ function SupportAdminPageInner() {
     const params = new URLSearchParams();
     params.set("status", statusFilter);
     if (q.trim()) params.set("q", q.trim());
-    const res = await fetch(`${API}/admin/support/conversations?${params}`, { headers });
+    const res = await fetch(`${resolveApiBase()}/admin/support/conversations?${params}`, { headers });
     const json = await res.json();
     if (!json.success) throw new Error(json.message);
     setConfig(json.data.config);
@@ -241,7 +240,7 @@ function SupportAdminPageInner() {
       if (!headers) return;
       const after =
         incremental && lastIdRef.current > 0 ? `?after_id=${lastIdRef.current}` : "";
-      const res = await fetch(`${API}/admin/support/conversations/${id}${after}`, { headers });
+      const res = await fetch(`${resolveApiBase()}/admin/support/conversations/${id}${after}`, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
       setConfig(json.data.config);
@@ -318,7 +317,7 @@ function SupportAdminPageInner() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/admin/support/conversations/${selectedId}${path}`, {
+      const res = await fetch(`${resolveApiBase()}/admin/support/conversations/${selectedId}${path}`, {
         method: "POST",
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -355,7 +354,7 @@ function SupportAdminPageInner() {
       const form = new FormData();
       form.append("body", body);
       if (file) form.append("file", file);
-      const res = await fetch(`${API}/admin/support/conversations/${selectedId}/messages`, {
+      const res = await fetch(`${resolveApiBase()}/admin/support/conversations/${selectedId}/messages`, {
         method: "POST",
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
         body: form,
@@ -382,7 +381,7 @@ function SupportAdminPageInner() {
   const onDraftChange = (value: string) => {
     setDraft(value);
     if (!headers || !selectedId || !value.trim()) return;
-    void fetch(`${API}/admin/support/conversations/${selectedId}/typing`, {
+    void fetch(`${resolveApiBase()}/admin/support/conversations/${selectedId}/typing`, {
       method: "POST",
       headers,
       body: "{}",
@@ -423,18 +422,17 @@ function SupportAdminPageInner() {
     <div className="space-y-5">
       <PageHeader
         title="Live support"
+        tip={
+          config?.enabled
+            ? "Configure under Settings → Live chat."
+            : "Chat is disabled for customers. Enable under Settings → Live chat."
+        }
         actions={
           <span className="rounded-full border border-[var(--border-soft)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
             {unreadTotal} unread
           </span>
         }
       />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Fully admin-controlled inbox. Enable and configure under Settings → Live chat.
-        {!config?.enabled ? (
-          <span className="ml-1 text-[var(--status-destructive-fg)]">Chat is currently disabled for customers.</span>
-        ) : null}
-      </p>
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(260px,340px)_1fr]">

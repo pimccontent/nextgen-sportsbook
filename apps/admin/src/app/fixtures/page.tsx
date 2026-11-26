@@ -49,6 +49,15 @@ type ListFilters = {
 
 const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
+function publicationLabel(state: string): string {
+  const map: Record<string, string> = {
+    draft: "Draft",
+    published: "Published",
+    suspended: "Suspended",
+  };
+  return map[state] ?? state;
+}
+
 export default function FixturesPage() {
   const { token } = useAdminAuth();
   const router = useRouter();
@@ -471,7 +480,7 @@ export default function FixturesPage() {
               <option value="">Publication</option>
               {filterOpts.publication_states.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {publicationLabel(s)}
                 </option>
               ))}
             </select>
@@ -661,7 +670,7 @@ export default function FixturesPage() {
                       {r.extraTime ? `+${r.extraTime}` : ""}
                       {r.period ? ` ${r.period}` : ""}
                     </td>
-                    <td>{r.publicationState}</td>
+                    <td>{publicationLabel(r.publicationState)}</td>
                     <td>
                       <TableActions
                         view={{ onClick: () => setViewing(r) }}
@@ -757,7 +766,8 @@ export default function FixturesPage() {
             </p>
             <p>
               {viewing.status}
-              {viewing.period ? ` · ${viewing.period}` : ""} · {viewing.publicationState}
+              {viewing.period ? ` · ${viewing.period}` : ""} ·{" "}
+              {publicationLabel(viewing.publicationState)}
             </p>
             <div className="flex flex-wrap justify-end gap-2 pt-2">
               <button

@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>NextGen Sportsbook — Live Server Installation</title>
+  <title>NextGen Sportsbook — Installation &amp; Admin Guide</title>
   <style>
-    @page { size: A4; margin: 18mm 16mm; }
+    @page { size: A4; margin: 16mm 14mm; }
     :root {
       --ink: #12141a;
       --muted: #5c6570;
@@ -12,58 +12,61 @@
       --accent: #c47a12;
       --panel: #f6f7f9;
       --ok: #1f6b3a;
+      --code-bg: #151820;
+      --code-fg: #e8edf2;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       color: var(--ink);
-      font: 11pt/1.45 "Segoe UI", system-ui, sans-serif;
+      font: 10.5pt/1.45 "Segoe UI", system-ui, sans-serif;
     }
     h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; line-height: 1.2; }
-    h1 { font-size: 22pt; margin: 0 0 6px; }
+    h1 { font-size: 20pt; margin: 0 0 6px; }
     h2 {
-      font-size: 14pt;
-      margin: 22px 0 8px;
+      font-size: 13pt;
+      margin: 20px 0 8px;
       padding-bottom: 4px;
       border-bottom: 1.5px solid var(--ink);
+      page-break-after: avoid;
     }
-    h3 { font-size: 11.5pt; margin: 14px 0 6px; color: var(--accent); }
+    h3 { font-size: 11pt; margin: 12px 0 6px; color: var(--accent); page-break-after: avoid; }
     p { margin: 0 0 8px; }
     .muted { color: var(--muted); }
     .hero {
       border: 1px solid var(--line);
       background: linear-gradient(135deg, #fff 0%, #f3f0ea 100%);
-      padding: 18px 18px 14px;
-      margin-bottom: 16px;
+      padding: 16px 16px 12px;
+      margin-bottom: 14px;
     }
     .badge {
       display: inline-block;
-      font: 700 8.5pt/1 "Segoe UI", sans-serif;
+      font: 700 8pt/1 "Segoe UI", sans-serif;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--accent);
       margin-bottom: 8px;
     }
-    .meta { font-size: 9.5pt; color: var(--muted); }
+    .meta { font-size: 9pt; color: var(--muted); }
     ol.steps { margin: 0; padding-left: 1.3em; }
-    ol.steps > li { margin: 0 0 12px; padding-left: 4px; }
+    ol.steps > li { margin: 0 0 10px; padding-left: 4px; }
     ol.steps > li::marker { font-weight: 700; color: var(--accent); }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10pt;
+      font-size: 9.5pt;
       margin: 8px 0 12px;
     }
     th, td {
       border: 1px solid var(--line);
-      padding: 7px 8px;
+      padding: 6px 8px;
       text-align: left;
       vertical-align: top;
     }
-    th { background: var(--panel); font-size: 9pt; text-transform: uppercase; letter-spacing: 0.04em; }
+    th { background: var(--panel); font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.04em; }
     code, pre {
       font-family: Consolas, "Courier New", monospace;
-      font-size: 9pt;
+      font-size: 8.5pt;
     }
     code {
       background: var(--panel);
@@ -72,36 +75,34 @@
       border-radius: 3px;
     }
     pre {
-      background: #151820;
-      color: #e8edf2;
-      padding: 10px 12px;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 12px 14px;
       border-radius: 6px;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
       margin: 6px 0 10px;
+      line-height: 1.5;
+      user-select: all;
+      -webkit-user-select: all;
+      page-break-inside: avoid;
     }
     .callout {
       border-left: 3px solid var(--accent);
       background: var(--panel);
       padding: 8px 10px;
       margin: 8px 0 12px;
-      font-size: 10pt;
+      font-size: 9.5pt;
     }
-    .warn {
-      border-left-color: #b45309;
-      background: #fff7ed;
-    }
-    .ok {
-      border-left-color: var(--ok);
-      background: #f0faf3;
-    }
+    .warn { border-left-color: #b45309; background: #fff7ed; }
+    .ok { border-left-color: var(--ok); background: #f0faf3; }
     ul.compact { margin: 4px 0 8px; padding-left: 1.2em; }
     ul.compact li { margin: 2px 0; }
     .footer {
-      margin-top: 24px;
+      margin-top: 20px;
       padding-top: 10px;
       border-top: 1px solid var(--line);
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: var(--muted);
     }
     .grid-2 {
@@ -116,118 +117,130 @@
       background: #fff;
     }
     .card strong { display: block; margin-bottom: 4px; }
+    .toc { columns: 2; column-gap: 18px; font-size: 9.5pt; margin: 8px 0 14px; }
+    .toc a { color: var(--ink); text-decoration: none; }
+    .toc li { margin: 3px 0; break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    .kbd {
+      display: inline-block;
+      font: 700 8pt Consolas, monospace;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 1px 5px;
+      background: #fff;
+    }
   </style>
 </head>
 <body>
   <div class="hero">
-    <div class="badge">NextGen Sportsbook</div>
-    <h1>Live Server Installation Guide</h1>
-    <p class="meta">Single-VPS production install · Path URL layout · Docker + Caddy HTTPS</p>
+    <div class="badge">Codecanyon-style documentation</div>
+    <h1>NextGen Sportsbook — Installation &amp; Admin Guide</h1>
+    <p class="meta">Single-VPS production install · Path URL layout · Docker + Caddy HTTPS · Admin settings &amp; usage</p>
     <p class="meta">Updated: 26 November 2026 · Sandbox / mock money until licensing go-live is approved</p>
   </div>
 
-  <h2>1. What you need</h2>
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li><a href="#req">Requirements &amp; ports</a></li>
+    <li><a href="#urls">URL map</a></li>
+    <li><a href="#install">Step-by-step install</a></li>
+    <li><a href="#post">Post-install &amp; first login</a></li>
+    <li><a href="#updates">Updates &amp; troubleshooting</a></li>
+    <li><a href="#admin">Admin guide overview</a></li>
+    <li><a href="#ops">Operations &amp; branding</a></li>
+    <li><a href="#payments">Payments</a></li>
+    <li><a href="#sports">Sports data &amp; fixtures</a></li>
+    <li><a href="#promo">Promotions &amp; commissions</a></li>
+    <li><a href="#staff">Staff, support, domain</a></li>
+    <li><a href="#checklist">Checklist</a></li>
+  </ol>
+
+  <div class="callout warn">
+    <strong>Compliance:</strong> This product ships in sandbox / test mode. Do not process real-money bets until licensing, payments, data rights, and responsible-gambling requirements are independently reviewed and approved.
+  </div>
+
+  <h2 id="req">1. Requirements / DNS / ports</h2>
   <ul class="compact">
-    <li>A Linux VPS: <strong>Ubuntu 22.04 or 24.04</strong>, root SSH access</li>
+    <li>Linux VPS: <strong>Ubuntu 22.04 or 24.04</strong>, root SSH</li>
     <li><strong>2 GB RAM minimum</strong> (4 GB recommended for first image build)</li>
-    <li>A domain name you control (DNS panel access)</li>
-    <li>An email address for Let’s Encrypt certificates</li>
+    <li>Domain you control + DNS panel access</li>
+    <li>Email for Let’s Encrypt certificates</li>
     <li>Not for classic shared hosting / cPanel PHP-only</li>
   </ul>
 
-  <div class="callout warn">
-    <strong>Compliance:</strong> This install runs in sandbox / test mode. Do not process real-money bets until licensing, payments, data rights, and responsible-gambling requirements are independently reviewed and approved.
+  <h3>DNS (path layout — recommended)</h3>
+  <table>
+    <thead><tr><th>Hostname</th><th>Type</th><th>Target</th></tr></thead>
+    <tbody>
+      <tr><td><code>YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
+      <tr><td><code>admin.YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>Cloudflare:</strong> Use <strong>DNS only (grey cloud)</strong> for apex and <code>admin.</code> until certificates are issued. Proxied (orange) DNS often breaks Let’s Encrypt HTTP-01 until Caddy is healthy.
   </div>
 
-  <h2>2. URL map (recommended)</h2>
+  <h3>Ports (Azure NSG / cloud firewall)</h3>
   <table>
-    <thead>
-      <tr><th>Surface</th><th>URL</th><th>Notes</th></tr>
-    </thead>
+    <thead><tr><th>Port</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>22</td><td>SSH</td></tr>
+      <tr><td>80</td><td>HTTP → ACME + redirect to HTTPS</td></tr>
+      <tr><td>443</td><td>HTTPS (Caddy)</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">On Azure, open these on the Network Security Group attached to the VM/NIC, not only UFW inside the guest.</p>
+
+  <h2 id="urls">2. URL map (recommended)</h2>
+  <table>
+    <thead><tr><th>Surface</th><th>URL</th><th>Notes</th></tr></thead>
     <tbody>
       <tr><td>Customer</td><td><code>https://YOUR_DOMAIN/</code></td><td>Main brand site</td></tr>
-      <tr><td>Agent</td><td><code>https://YOUR_DOMAIN/agent</code></td><td>Folder on the same domain</td></tr>
+      <tr><td>Agent</td><td><code>https://YOUR_DOMAIN/agent</code></td><td>Path on the same domain</td></tr>
       <tr><td>API</td><td><code>https://YOUR_DOMAIN/api/v1/…</code></td><td>Same host as customer</td></tr>
       <tr><td>Admin</td><td><code>https://admin.YOUR_DOMAIN</code></td><td>Staff subdomain only</td></tr>
+      <tr><td>Health</td><td><code>https://YOUR_DOMAIN/api/v1/health</code></td><td>JSON health check</td></tr>
     </tbody>
   </table>
 
-  <h2>3. Step-by-step installation</h2>
+  <h2 id="install">3. Step-by-step installation</h2>
   <ol class="steps">
     <li>
       <strong>Create the VPS</strong><br />
-      Provision Ubuntu 22.04/24.04. Note the public IPv4 address. Confirm you can SSH as root (or a user with sudo).
+      Provision Ubuntu 22.04/24.04. Note the public IPv4. Confirm root SSH (or sudo).
     </li>
     <li>
-      <strong>Add DNS records (do this first)</strong><br />
-      In your DNS provider, create these <strong>A</strong> records pointing to the VPS IP:
-      <table>
-        <thead><tr><th>Hostname</th><th>Type</th><th>Target</th></tr></thead>
-        <tbody>
-          <tr><td><code>YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
-          <tr><td><code>admin.YOUR_DOMAIN</code></td><td>A</td><td>VPS public IP</td></tr>
-        </tbody>
-      </table>
-      Optional: <code>www.YOUR_DOMAIN</code> redirects to the apex automatically via Caddy.
-      <div class="callout">Wait for DNS to propagate (often a few minutes). Certificates fail if DNS is wrong.</div>
+      <strong>Add DNS records first</strong><br />
+      Create the two A records above. Wait for propagation. Certificates fail if DNS is wrong.
     </li>
     <li>
-      <strong>(Optional but recommended on 1–2 GB VPS) Add swap</strong>
+      <strong>(Optional on 1–2 GB VPS) Add swap</strong>
       <pre>sudo fallocate -l 2G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
-sudo swapon /swapfile</pre>
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab</pre>
     </li>
     <li>
-      <strong>SSH into the VPS as root</strong>
+      <strong>SSH into the VPS</strong>
       <pre>ssh root@YOUR_VPS_IP</pre>
     </li>
     <li>
-      <strong>Run the guided installer (smoothest)</strong>
+      <strong>Guided wizard (smoothest)</strong>
       <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --wizard --install-docker</pre>
-      The wizard will ask for:
-      <ul class="compact">
-        <li>Apex domain (example: <code>bet.example.com</code>)</li>
-        <li>Let’s Encrypt email</li>
-        <li>URL layout — choose <code>path</code> (recommended)</li>
-        <li>Whether to use prebuilt images if available</li>
-      </ul>
-      It then checks DNS, installs Docker if needed, opens firewall ports <strong>22 / 80 / 443</strong>, and starts the stack.
+      Prompts for domain, Let’s Encrypt email, layout (<code>path</code> recommended), and optional prebuilt images. Then checks DNS, installs Docker, opens ports <strong>22 / 80 / 443</strong>, and starts the stack.
     </li>
     <li>
-      <strong>Or use the non-interactive one-liner</strong>
+      <strong>Non-interactive one-liner</strong>
       <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --install-docker</pre>
-      Replace <code>YOUR_DOMAIN</code> and <code>YOU@EMAIL.com</code> with real values.
     </li>
     <li>
       <strong>Wait for the first build</strong><br />
-      The first run can take several minutes while Docker images build. When finished you should see Customer / Agent / Admin / API URLs printed in the terminal.
-    </li>
-    <li>
-      <strong>Verify HTTPS and health</strong>
-      <ul class="compact">
-        <li>Open <code>https://YOUR_DOMAIN/</code> — customer app</li>
-        <li>Open <code>https://YOUR_DOMAIN/agent</code> — agent portal</li>
-        <li>Open <code>https://admin.YOUR_DOMAIN</code> — admin portal</li>
-        <li>Open <code>https://YOUR_DOMAIN/api/v1/health</code> — API should return healthy JSON</li>
-      </ul>
-    </li>
-    <li>
-      <strong>Sign in to Admin</strong><br />
-      Demo Super Admin (seeded when the database has zero users):
-      <div class="grid-2">
-        <div class="card"><strong>Email</strong>admin@nextgen.local</div>
-        <div class="card"><strong>Password</strong>Password1!</div>
-      </div>
-      Change this password immediately after first login.
-    </li>
-    <li>
-      <strong>Confirm domain layout in Admin</strong><br />
-      Go to <strong>Settings → Domain &amp; deploy</strong> to see portal URLs, required DNS hosts, and the update command.
+      First run can take several minutes. When finished, Customer / Agent / Admin / API URLs print in the terminal.
     </li>
   </ol>
 
-  <h2>4. What the installer does</h2>
+  <h3>What the installer does</h3>
   <ol class="compact">
     <li>Installs packages (<code>curl</code>, <code>git</code>, <code>ufw</code>, …)</li>
     <li>Installs Docker Engine + Compose v2</li>
@@ -239,7 +252,36 @@ sudo swapon /swapfile</pre>
     <li>Caddy obtains Let’s Encrypt certificates for the two hostnames</li>
   </ol>
 
-  <h2>5. Day-2 operations</h2>
+  <h2 id="post">4. Post-install URLs and first login</h2>
+  <div class="grid-2">
+    <div class="card"><strong>Admin email</strong>admin@nextgen.local</div>
+    <div class="card"><strong>Admin password</strong>Password1!</div>
+  </div>
+  <p>Seeded automatically when the database has zero users. <strong>Change this password immediately.</strong></p>
+  <table>
+    <thead><tr><th>App</th><th>URL</th></tr></thead>
+    <tbody>
+      <tr><td>Customer</td><td><code>https://YOUR_DOMAIN/</code></td></tr>
+      <tr><td>Agent</td><td><code>https://YOUR_DOMAIN/agent</code></td></tr>
+      <tr><td>Admin</td><td><code>https://admin.YOUR_DOMAIN</code></td></tr>
+      <tr><td>API health</td><td><code>https://YOUR_DOMAIN/api/v1/health</code></td></tr>
+    </tbody>
+  </table>
+  <p>In Admin → <strong>Settings → Domain &amp; deploy</strong> you can see the same URLs and the update command.</p>
+
+  <h3>Other seeded demos (local / sandbox)</h3>
+  <table>
+    <thead><tr><th>Portal</th><th>Login</th><th>Password</th></tr></thead>
+    <tbody>
+      <tr><td>Customer</td><td>Mobile <code>0241111111</code></td><td><code>Password1!</code> · PIN <code>123456</code></td></tr>
+      <tr><td>Agent</td><td><code>agent@nextgen.local</code></td><td><code>Password1!</code></td></tr>
+      <tr><td>Staff admin</td><td><code>staff@nextgen.local</code></td><td><code>Password1!</code> (limited modules)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h2 id="updates">5. Updates / troubleshooting</h2>
   <h3>Update the stack</h3>
   <pre>cd ~/nextgen-sportsbook
 bash scripts/update-vps.sh
@@ -249,47 +291,164 @@ bash scripts/update-vps.sh --build</pre>
 
   <h3>Useful commands</h3>
   <pre>bash scripts/check-dns.sh --domain=YOUR_DOMAIN
-docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https ps
-docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs -f api</pre>
 
-  <h3>If you change public URLs / Next env</h3>
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https ps
+
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs -f api
+docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs -f caddy</pre>
+
+  <h3>If you change public URLs / Next.js env</h3>
   <pre>docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps --profile https up -d --build customer admin agent</pre>
 
-  <h2>6. Alternatives</h2>
-  <h3>IP-only (no domain / no HTTPS) — testing only</h3>
+  <h3>Common issues</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Certificate / HTTPS fails</td>
+        <td>Confirm A records; Cloudflare grey-cloud; ports 80/443 open on cloud NSG + UFW; re-run update after DNS is correct.</td>
+      </tr>
+      <tr>
+        <td>Admin login fails / 500</td>
+        <td>Check API logs; Redis/Postgres must be up; entrypoint maps DB/Redis host ports correctly inside Compose.</td>
+      </tr>
+      <tr>
+        <td>Blank admin / wrong API host</td>
+        <td>Admin resolves API from <code>admin.</code> → apex <code>/api/v1</code>. Rebuild frontends if <code>NEXT_PUBLIC_*</code> was wrong at build time.</td>
+      </tr>
+      <tr>
+        <td>OOM during first build</td>
+        <td>Add 2G swap; prefer 4 GB RAM; or use prebuilt images (<code>USE_PREBUILT_IMAGES=1</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Alternatives</h3>
+  <p><strong>IP-only (no HTTPS) — testing only:</strong></p>
   <pre>curl -fsSL https://raw.githubusercontent.com/pimccontent/nextgen-sportsbook/main/scripts/install-vps.sh | bash -s -- --install-docker --host=YOUR_VPS_IP</pre>
-  <p class="muted">Serves customer :3000, admin :3001, agent :3002, API :8081 over HTTP.</p>
-
-  <h3>Legacy four-host layout</h3>
-  <p>Only if you need separate <code>agent.</code> and <code>api.</code> subdomains:</p>
+  <p class="muted">Customer :3000 · Admin :3001 · Agent :3002 · API :8081</p>
+  <p><strong>Legacy four-host layout</strong> (also needs <code>agent.</code> + <code>api.</code> A records):</p>
   <pre>bash scripts/install-vps.sh --domain=YOUR_DOMAIN --email=YOU@EMAIL.com --layout=hosts --install-docker</pre>
-  <p>Also requires A records for <code>agent.YOUR_DOMAIN</code> and <code>api.YOUR_DOMAIN</code>.</p>
 
-  <h2>7. Quick checklist</h2>
+  <h2 id="admin">6. Admin guide — overview</h2>
+  <p>All business rules live on the Laravel API. Frontends are clients. After install, configure the product in this order:</p>
+  <ol class="compact">
+    <li><strong>Operations</strong> — environment (sandbox/live), maintenance</li>
+    <li><strong>Branding</strong> — name, colors, logo, favicon</li>
+    <li><strong>Payments</strong> — Paystack keys (write-only secrets)</li>
+    <li><strong>Sports data</strong> — provider + auto-publish</li>
+    <li><strong>Fixtures</strong> — sync → draft → publish; edit locks provider updates</li>
+    <li><strong>Promotions / Commissions</strong> — % and flat GHS</li>
+    <li><strong>Staff</strong> — least-privilege modules</li>
+    <li><strong>Live chat</strong> — support widget</li>
+    <li><strong>Domain &amp; deploy</strong> — read-only topology + update command</li>
+  </ol>
+  <p class="muted">UI tips use a small <span class="kbd">i</span> info icon — hover or focus for guidance instead of long page essays.</p>
+
+  <h2 id="ops">7. Operations &amp; Branding</h2>
+  <h3>Operations</h3>
+  <ul class="compact">
+    <li><strong>Sandbox</strong> (default): mock/test money paths allowed; demo deposits may be available.</li>
+    <li><strong>Live</strong>: confirm by typing <code>LIVE</code>; updates payment mode banners. Does <em>not</em> alone enable Paystack HTTP — complete go-live checklist separately.</li>
+    <li><strong>Maintenance</strong>: blocks Customer and Agent; Admin stays up.</li>
+  </ul>
+  <h3>Branding</h3>
+  <ul class="compact">
+    <li>Site name, day/night color palettes, logo/favicon uploads (stored on API <code>/storage/…</code>).</li>
+    <li>Customer messages: lobby popup/toast IDs — bump ID after copy changes so returning visitors see updates.</li>
+    <li>Hero banners managed under Banners.</li>
+  </ul>
+
+  <h2 id="payments">8. Payments</h2>
+  <ul class="compact">
+    <li>Provider defaults to Paystack-compatible adapters.</li>
+    <li>Secrets are <strong>write-only</strong> in Admin (hint shown when configured; plaintext never returned).</li>
+    <li>Live deposits credit only via signed webhooks — never trust frontend “payment success” alone.</li>
+    <li>Manual deposit manager (sandbox/test) lives under Admin → Deposits.</li>
+    <li>Withdrawals are cash-only; bonus wallet is segregated.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2 id="sports">9. Sports data &amp; fixtures workflow</h2>
+  <h3>Sports data settings</h3>
+  <ul class="compact">
+    <li>Free providers: <code>mock</code>, <code>embedded_world</code>, <code>openligadb</code> (no key), <code>thesportsdb</code> (demo key <code>123</code>, rate-limited), optional <code>football-data.org</code> free token.</li>
+    <li><strong>Auto-publish imports</strong> defaults to <strong>off</strong>. Sync creates <strong>Draft</strong> fixtures until you publish. Turn on only if you want unlocked imports visible to customers immediately.</li>
+    <li>Default 1X2 odds apply to newly created selections only.</li>
+  </ul>
+
+  <h3>Fixtures workflow</h3>
+  <ol class="compact">
+    <li><strong>Sync</strong> (Admin → Fixtures → Sync) pulls provider catalogue into the database.</li>
+    <li>New/unlocked rows arrive as <strong>Draft</strong> unless auto-publish is on.</li>
+    <li><strong>Publish</strong> (single or bulk) makes fixtures visible — publishing alone does <em>not</em> lock the fixture.</li>
+    <li><strong>Unlocked</strong> fixtures keep accepting provider updates on sync/refresh (kickoff, status, scores when the provider returns them).</li>
+    <li><strong>Locked</strong> (<code>admin_locked</code>) happens when an admin edits controlling data: schedule, live clock/scores/result, odds, markets, match script, or custom create. Provider sync then skips overwrites.</li>
+    <li><strong>Suspend</strong> hides from customers without deleting; sync will not un-suspend.</li>
+  </ol>
+  <div class="callout">
+    <strong>Live depth:</strong> Providers that return live/finished data (e.g. OpenLigaDB / TheSportsDB where available) update unlocked fixtures on sync. When a provider has no live feed, the platform uses a clock-based lifecycle fallback — document this limit to operators.
+  </div>
+
+  <h3>Match scripts</h3>
+  <p>On a fixture detail page: set durations / planned scores → <strong>Save &amp; arm</strong>. Arming locks the fixture and auto-starts at kickoff for sandbox clocks.</p>
+
+  <h2 id="promo">10. Promotions &amp; commissions (%)</h2>
+  <ul class="compact">
+    <li>UI shows simple <strong>percent</strong> (enter <code>10</code> for 10%) and flat <strong>GHS</strong> amounts.</li>
+    <li>Storage remains integer basis points / minor units (<code>10%</code> ↔ <code>1000</code> bps; GHS ↔ pesewas ×100).</li>
+    <li>Backend math unchanged (<code>/ 10000</code> for bps).</li>
+    <li>Deposit/win bonuses credit the segregated bonus wallet; winnings from bonus-funded stakes settle to cash.</li>
+    <li>Agent portal commissions list shows rates as <code>2%</code>, not raw bps.</li>
+  </ul>
+
+  <h2 id="staff">11. Staff permissions, support chat, domain</h2>
+  <h3>Staff</h3>
+  <ul class="compact">
+    <li>Super Admin has full access; create limited staff under Admin → Staff with explicit modules (dashboard, fixtures, customers, deposits, support, …).</li>
+    <li>Least privilege: only enable modules each operator needs.</li>
+  </ul>
+  <h3>Live support</h3>
+  <ul class="compact">
+    <li>Enable under Settings → Live chat (greeting, hours, canned replies, enter-to-send).</li>
+    <li>Customer <code>/support</code> + Admin → Live support inbox; attachments, emoji, unread bell.</li>
+  </ul>
+  <h3>Domain &amp; deploy</h3>
+  <ul class="compact">
+    <li>Read-only panel of current VPS topology and URLs.</li>
+    <li>Does not push production by itself — rebuild on the server with:</li>
+  </ul>
+  <pre>cd ~/nextgen-sportsbook
+bash scripts/update-vps.sh --pull-git --build</pre>
+
+  <h2 id="checklist">12. Quick checklist</h2>
   <table>
     <thead><tr><th>Check</th><th>Done?</th></tr></thead>
     <tbody>
       <tr><td>VPS Ubuntu 22.04/24.04 with root SSH</td><td>☐</td></tr>
-      <tr><td>DNS A: apex → VPS IP</td><td>☐</td></tr>
+      <tr><td>DNS A: apex → VPS IP (Cloudflare grey-cloud)</td><td>☐</td></tr>
       <tr><td>DNS A: admin.apex → VPS IP</td><td>☐</td></tr>
+      <tr><td>Cloud NSG / firewall: 22, 80, 443</td><td>☐</td></tr>
       <tr><td>Swap added on small VPS</td><td>☐</td></tr>
       <tr><td>Installer / wizard completed</td><td>☐</td></tr>
-      <tr><td>Customer HTTPS opens</td><td>☐</td></tr>
-      <tr><td>Agent HTTPS opens at /agent</td><td>☐</td></tr>
-      <tr><td>Admin HTTPS opens</td><td>☐</td></tr>
+      <tr><td>Customer / Agent / Admin HTTPS open</td><td>☐</td></tr>
       <tr><td>API /api/v1/health OK</td><td>☐</td></tr>
       <tr><td>Admin password changed from demo</td><td>☐</td></tr>
+      <tr><td>Branding + sports provider configured</td><td>☐</td></tr>
+      <tr><td>Auto-publish left off until drafts reviewed (recommended)</td><td>☐</td></tr>
       <tr><td>Still sandbox until licensing approved</td><td>☐</td></tr>
     </tbody>
   </table>
 
   <div class="callout ok">
-    <strong>Primary path:</strong> 2 DNS records → wizard install → open Admin at <code>https://admin.YOUR_DOMAIN</code> → Settings → Domain &amp; deploy.
+    <strong>Primary path:</strong> 2 DNS records → wizard install → Admin at <code>https://admin.YOUR_DOMAIN</code> → Settings (Operations → Branding → Sports data) → Fixtures sync → publish drafts.
   </div>
 
   <div class="footer">
-    NextGen Sportsbook · Live Server Installation Guide · Source docs: docs/architecture/VPS_DEPLOY.md and URL_MAP.md<br />
-    Repository: https://github.com/pimccontent/nextgen-sportsbook
+    NextGen Sportsbook · Installation &amp; Admin Guide · Source: docs/architecture/VPS_DEPLOY.md, URL_MAP.md, PROJECT_STATUS.md<br />
+    Repository: https://github.com/pimccontent/nextgen-sportsbook<br />
+    Print this HTML to PDF (Chrome → Print → Save as PDF) for the companion PDF artifact.
   </div>
 </body>
 </html>

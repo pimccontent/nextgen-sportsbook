@@ -3,8 +3,8 @@
 import * as React from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
 
 type PayoutRow = {
   id: string;
@@ -30,7 +30,7 @@ export default function AgentPayoutsPage() {
     if (!token) return;
     setError(null);
     const q = filter === "all" ? "all" : "pending";
-    const res = await fetch(`${API}/admin/agent-payouts?status=${q}`, {
+    const res = await fetch(`${resolveApiBase()}/admin/agent-payouts?status=${q}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
     const json = await res.json();
@@ -48,7 +48,7 @@ export default function AgentPayoutsPage() {
     setError(null);
     setStatus(null);
     try {
-      const res = await fetch(`${API}/admin/agent-payouts/${id}/${action}`, {
+      const res = await fetch(`${resolveApiBase()}/admin/agent-payouts/${id}/${action}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -70,10 +70,10 @@ export default function AgentPayoutsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Agent payouts" />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Approve sandbox payouts or reject to restore commission balance.
-      </p>
+      <PageHeader
+        title="Agent payouts"
+        tip="Approve payouts or reject to restore commission balance."
+      />
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
       {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
 

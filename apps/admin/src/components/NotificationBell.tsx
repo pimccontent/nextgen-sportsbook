@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, MessageCircle, X } from "lucide-react";
 import { useAdminAuth } from "@/lib/auth-context";
-
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
+import { resolveApiBase } from "@/lib/api";
 
 type Conv = {
   id: number;
@@ -42,7 +41,7 @@ export function NotificationBell() {
     }
     let cancelled = false;
     const load = () => {
-      void fetch(`${API}/admin/support/conversations?status=open`, {
+      void fetch(`${resolveApiBase()}/admin/support/conversations?status=open`, {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       })
         .then((r) => r.json())

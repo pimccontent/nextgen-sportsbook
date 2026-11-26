@@ -1,13 +1,21 @@
+import type { ReactNode } from "react";
+import { InfoTip } from "@/components/ui/InfoTip";
+
 export function FormField({
   label,
+  tip,
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  tip?: string;
+  children: ReactNode;
 }) {
   return (
     <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-      {label}
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {tip ? <InfoTip text={tip} /> : null}
+      </span>
       <div className="mt-1.5">{children}</div>
     </label>
   );

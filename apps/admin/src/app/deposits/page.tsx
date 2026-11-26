@@ -11,8 +11,8 @@ import {
   fieldClass,
 } from "@/components/ui/FormField";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
 
 type Deposit = {
   id: number;
@@ -46,7 +46,7 @@ export default function DepositsAdminPage() {
 
   const load = React.useCallback(async () => {
     if (!token) return;
-    const res = await fetch(`${API}/admin/deposits`, {
+    const res = await fetch(`${resolveApiBase()}/admin/deposits`, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
@@ -63,7 +63,7 @@ export default function DepositsAdminPage() {
     setBusyId(id);
     setError(null);
     try {
-      const res = await fetch(`${API}/admin/deposits/${id}/commissionable`, {
+      const res = await fetch(`${resolveApiBase()}/admin/deposits/${id}/commissionable`, {
         method: "PATCH",
         headers: {
           Accept: "application/json",
@@ -100,7 +100,7 @@ export default function DepositsAdminPage() {
       if (manual.userId.trim()) body.user_id = Number(manual.userId);
       if (manual.phone.trim()) body.phone = manual.phone.trim();
 
-      const res = await fetch(`${API}/admin/deposits/manual`, {
+      const res = await fetch(`${resolveApiBase()}/admin/deposits/manual`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -127,10 +127,10 @@ export default function DepositsAdminPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Deposits" />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Manual credits (sandbox/test only) and commissionable Yes/No for agent commissions.
-      </p>
+      <PageHeader
+        title="Deposits"
+        tip="Manual credits are for sandbox/test. Mark deposits commissionable for agents when needed."
+      />
       {status ? <p className="text-sm text-[var(--status-healthy-fg)]">{status}</p> : null}
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 

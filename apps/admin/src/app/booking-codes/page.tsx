@@ -3,8 +3,8 @@
 import * as React from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
 const CUSTOMER_ORIGIN =
   process.env.NEXT_PUBLIC_CUSTOMER_ORIGIN?.replace(/\/$/, "") || "http://localhost:3000";
 
@@ -23,7 +23,7 @@ export default function BookingCodesAdminPage() {
 
   const reload = React.useCallback(async () => {
     if (!token) return;
-    const res = await fetch(`${API}/admin/booking-codes`, {
+    const res = await fetch(`${resolveApiBase()}/admin/booking-codes`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
     const json = await res.json();
@@ -43,18 +43,14 @@ export default function BookingCodesAdminPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Booking codes" />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Build slips on the customer sportsbook, save a shareable code, and list it for players.
-      </p>
+      <PageHeader
+        title="Booking codes"
+        tip="Open the customer builder, pick selections, then Save for code. No real bet is placed."
+      />
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <section className="admin-card space-y-3 p-4">
         <h2 className="text-sm font-semibold">Create slip</h2>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          Opens the customer app in booking-builder mode. Pick selections →{" "}
-          <strong>Save for code</strong>. No real bet is placed.
-        </p>
         <button
           type="button"
           onClick={openCustomerBuilder}
@@ -93,7 +89,7 @@ export default function BookingCodesAdminPage() {
                 className="text-xs font-semibold text-[var(--status-destructive-fg)]"
                 onClick={async () => {
                   if (!token) return;
-                  await fetch(`${API}/admin/booking-codes/${c.code}/revoke`, {
+                  await fetch(`${resolveApiBase()}/admin/booking-codes/${c.code}/revoke`, {
                     method: "POST",
                     headers: {
                       Authorization: `Bearer ${token}`,

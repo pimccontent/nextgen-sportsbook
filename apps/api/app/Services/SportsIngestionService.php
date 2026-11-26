@@ -127,6 +127,20 @@ final class SportsIngestionService
                 return ['created' => false, 'skipped' => true];
             }
 
+            $autoPublish = (bool) ($cfg['auto_publish'] ?? false);
+            $existingPub = $existing?->publication_state;
+            // Never un-suspend via sync. Auto-publish only lifts drafts to published.
+            if ($existingPub === PublicationState::Suspended) {
+                $publication = PublicationState::Suspended;
+                $publishedAt = $existing?->published_at;
+            } elseif ($autoPublish) {
+                $publication = PublicationState::Published;
+                $publishedAt = $existing?->published_at ?? now();
+            } else {
+                $publication = $existingPub ?? PublicationState::Draft;
+                $publishedAt = $existing?->published_at;
+            }
+
             $event = SportEvent::query()->updateOrCreate(
                 ['provider_event_id' => $dto->providerEventId],
                 [
@@ -137,14 +151,13 @@ final class SportsIngestionService
                     'kickoff_at' => $dto->kickoffIso,
                     'timezone' => 'UTC',
                     'status' => EventStatus::from($dto->status),
-                    'score_home' => $existing?->score_home ?? $dto->scoreHome,
-                    'score_away' => $existing?->score_away ?? $dto->scoreAway,
+                    // Unlocked fixtures accept provider score/status updates when provided.
+                    'score_home' => $dto->scoreHome !== null ? $dto->scoreHome : $existing?->score_home,
+                    'score_away' => $dto->scoreAway !== null ? $dto->scoreAway : $existing?->score_away,
                     'provider_source' => $providerName,
                     'provider_ingested_at' => now(),
-                    'publication_state' => ($cfg['auto_publish'] ?? false)
-                        ? PublicationState::Published
-                        : ($existing?->publication_state ?? PublicationState::Draft),
-                    'published_at' => ($cfg['auto_publish'] ?? false) ? now() : $existing?->published_at,
+                    'publication_state' => $publication,
+                    'published_at' => $publishedAt,
                 ]
             );
 

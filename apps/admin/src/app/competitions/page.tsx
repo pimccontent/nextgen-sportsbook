@@ -3,8 +3,8 @@
 import * as React from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
 
 export default function CompetitionsAdminPage() {
   const { token } = useAdminAuth();
@@ -17,7 +17,7 @@ export default function CompetitionsAdminPage() {
 
   const reload = React.useCallback(async () => {
     if (!token) return;
-    const res = await fetch(`${API}/admin/competitions`, {
+    const res = await fetch(`${resolveApiBase()}/admin/competitions`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
     const json = await res.json();
@@ -30,8 +30,7 @@ export default function CompetitionsAdminPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Competitions" />
-      <p className="text-sm text-[var(--text-tertiary)]">Manage fixture categories/leagues.</p>
+      <PageHeader title="Competitions" tip="Leagues and categories used on fixtures." />
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <section className="admin-card space-y-3 p-4">
@@ -54,7 +53,7 @@ export default function CompetitionsAdminPage() {
             className="rounded-lg bg-[var(--action-primary)] px-3 py-2 text-xs font-bold text-[var(--action-primary-fg)]"
             onClick={async () => {
               if (!token || !name.trim()) return;
-              const res = await fetch(`${API}/admin/competitions`, {
+              const res = await fetch(`${resolveApiBase()}/admin/competitions`, {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -91,7 +90,7 @@ export default function CompetitionsAdminPage() {
               className="text-xs font-semibold"
               onClick={async () => {
                 if (!token) return;
-                await fetch(`${API}/admin/competitions/${r.id}`, {
+                await fetch(`${resolveApiBase()}/admin/competitions/${r.id}`, {
                   method: "PUT",
                   headers: {
                     Authorization: `Bearer ${token}`,

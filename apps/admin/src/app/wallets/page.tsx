@@ -6,8 +6,8 @@ import { Modal } from "@/components/ui/Modal";
 import { TableActions } from "@/components/ui/TableActions";
 import { btnGhostClass, btnPrimaryClass, fieldClass } from "@/components/ui/FormField";
 import { useAdminAuth } from "@/lib/auth-context";
+import { resolveApiBase } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8081/api/v1";
 
 type Row = {
   id: number;
@@ -39,7 +39,7 @@ export default function WalletsPage() {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
-    const res = await fetch(`${API}/admin/withdrawals?${params.toString()}`, {
+    const res = await fetch(`${resolveApiBase()}/admin/withdrawals?${params.toString()}`, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
@@ -56,7 +56,7 @@ export default function WalletsPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/admin/withdrawals/${id}/${action}`, {
+      const res = await fetch(`${resolveApiBase()}/admin/withdrawals/${id}/${action}`, {
         method: "POST",
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       });
@@ -73,10 +73,10 @@ export default function WalletsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Withdrawals" />
-      <p className="text-sm text-[var(--text-tertiary)]">
-        Full withdrawal history with customer details. Approve or reject pending requests.
-      </p>
+      <PageHeader
+        title="Withdrawals"
+        tip="Approve or reject pending withdrawal requests."
+      />
       {error ? <p className="text-sm text-[var(--status-destructive-fg)]">{error}</p> : null}
 
       <div className="admin-card flex flex-wrap items-center gap-2 p-3">
