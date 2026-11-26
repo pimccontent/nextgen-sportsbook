@@ -135,9 +135,12 @@ if [[ -z "$ROOT" ]]; then
   fi
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     echo "Updating existing clone at $INSTALL_DIR"
+    git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL" 2>/dev/null || true
     git -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"
-    git -C "$INSTALL_DIR" checkout "$BRANCH"
-    git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH" || true
+    # Installer-owned checkout: discard local drift so VPS always matches GitHub.
+    git -C "$INSTALL_DIR" checkout -B "$BRANCH" "origin/$BRANCH"
+    git -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
+    git -C "$INSTALL_DIR" clean -fd
     ROOT="$INSTALL_DIR"
   else
     echo "Cloning $REPO_URL ($BRANCH) → $INSTALL_DIR"
@@ -150,6 +153,10 @@ cd "$ROOT"
 chmod +x scripts/*.sh || true
 
 if [[ "$WIZARD" == "1" ]]; then
+  if [[ ! -f "$ROOT/scripts/setup-wizard.sh" ]]; then
+    echo "setup-wizard.sh missing after sync. Clone is incomplete — delete $ROOT and re-run."
+    exit 1
+  fi
   export INSTALL_DOCKER DOMAIN ACME_EMAIL URL_LAYOUT USE_PREBUILT_IMAGES="$USE_PREBUILT" SKIP_DNS
   bash "$ROOT/scripts/setup-wizard.sh"
   exit 0
