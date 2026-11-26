@@ -37,7 +37,9 @@ final class OpenLigaDbProvider implements SportsDataProvider
             $away = (string) ($row['team2']['teamName'] ?? 'Away');
             $kickoff = (string) ($row['matchDateTimeUTC'] ?? $row['matchDateTime'] ?? now()->toIso8601String());
             $finished = (bool) ($row['matchIsFinished'] ?? false);
-            $status = $finished ? 'finished' : 'upcoming';
+            $kickoffTs = strtotime($kickoff) ?: null;
+            $started = $kickoffTs !== null && $kickoffTs <= time();
+            $status = $finished ? 'finished' : ($started ? 'live' : 'upcoming');
             $scoreHome = null;
             $scoreAway = null;
             $results = $row['matchResults'] ?? [];
@@ -63,6 +65,8 @@ final class OpenLigaDbProvider implements SportsDataProvider
                 $scoreHome,
                 $scoreAway,
                 true,
+                null,
+                $finished ? 'FT' : ($started ? '1H' : null),
             );
         }
 

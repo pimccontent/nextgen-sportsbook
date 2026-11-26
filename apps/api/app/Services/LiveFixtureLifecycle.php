@@ -5,10 +5,14 @@ namespace App\Services;
 use App\Enums\EventStatus;
 use App\Models\EventScript;
 use App\Models\SportEvent;
+use App\Services\SportsData\LiveProviderLookup;
 
 /**
  * Promotes due kickoffs and runs armed match scripts.
  * Invoked on fixture reads + fixtures:tick.
+ *
+ * Unlocked provider-backed fixtures are owned by LiveFixtureSyncService.
+ * Unlocked synthetic emb:/custom:/mock: are not auto-marked LIVE by the local clock.
  */
 final class LiveFixtureLifecycle
 {
@@ -30,7 +34,23 @@ final class LiveFixtureLifecycle
             ->pluck('event_id')
             ->all();
 
+        // Cleanup: unlocked synthetic emb: lives were clock-faked — demote to upcoming.
+        SportEvent::query()
+            ->where('status', EventStatus::Live)
+            ->where('admin_locked', false)
+            ->where('provider_event_id', 'like', 'emb:%')
+            ->when($activeScriptIds !== [], fn ($q) => $q->whereNotIn('id', $activeScriptIds))
+            ->limit($limit)
+            ->update([
+                'status' => EventStatus::Upcoming,
+                'period' => null,
+                'minute' => null,
+                'extra_time_minute' => null,
+                'clock_started_at' => null,
+            ]);
+
         // Upcoming whose schedule already ended → played (skip live).
+        // Still applies to locked/admin rows; unlocked synthetics with ends_at also finish.
         SportEvent::query()
             ->where('status', EventStatus::Upcoming)
             ->whereNotNull('ends_at')
@@ -43,9 +63,12 @@ final class LiveFixtureLifecycle
                 'clock_started_at' => null,
             ]);
 
-        // Kickoff reached → Live.
+        // Kickoff reached → Live only for admin-locked fixtures (admin guide).
+        // Unlocked pollable ids: provider live adapter owns status.
+        // Unlocked emb:/custom:/mock: stay upcoming until admin edits/scripts.
         $due = SportEvent::query()
             ->where('status', EventStatus::Upcoming)
+            ->where('admin_locked', true)
             ->where('kickoff_at', '<=', now())
             ->where(function ($q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
@@ -113,7 +136,8 @@ final class LiveFixtureLifecycle
                 ]);
         }
 
-        // Live → Finished: non-scripted safety net when ends_at missing.
+        // Live → Finished: safety net when ends_at missing.
+        // Skip unlocked pollable rows briefly — provider should finish them; still expire after window.
         $stale = SportEvent::query()
             ->where('status', EventStatus::Live)
             ->whereNull('ends_at')
@@ -126,6 +150,17 @@ final class LiveFixtureLifecycle
             ->get();
 
         foreach ($stale as $event) {
+            // Unlocked synthetics should not linger as live (demote path handles emb:).
+            if (! $event->admin_locked && LiveProviderLookup::isSynthetic((string) $event->provider_event_id)) {
+                $event->status = EventStatus::Upcoming;
+                $event->period = null;
+                $event->minute = null;
+                $event->clock_started_at = null;
+                $event->save();
+
+                continue;
+            }
+
             $event->status = EventStatus::Finished;
             $event->period = 'FT';
             $event->clock_started_at = null;

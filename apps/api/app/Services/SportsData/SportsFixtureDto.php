@@ -18,6 +18,8 @@ final class SportsFixtureDto
         public readonly ?int $scoreHome = null,
         public readonly ?int $scoreAway = null,
         public readonly bool $isTopLeague = true,
+        public readonly ?int $minute = null,
+        public readonly ?string $period = null,
     ) {
     }
 }

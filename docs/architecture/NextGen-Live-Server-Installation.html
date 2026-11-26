@@ -388,7 +388,7 @@ docker compose -f infrastructure/docker-compose.vps.yml --env-file .env.vps logs
     <li><strong>Suspend</strong> hides from customers without deleting; sync will not un-suspend.</li>
   </ol>
   <div class="callout">
-    <strong>Live depth:</strong> Providers that return live/finished data (e.g. OpenLigaDB / TheSportsDB where available) update unlocked fixtures on sync. When a provider has no live feed, the platform uses a clock-based lifecycle fallback — document this limit to operators.
+    <strong>Live depth:</strong> Scheduled <code>fixtures:live-sync</code> polls unlocked fixtures that have real provider event ids (<code>tsdb:</code>, <code>oldb:</code>, <code>fd:</code>) for status, scores, and minute/period when the API returns them. Locked fixtures (<code>admin_locked</code>) are never overwritten — admin edits and match scripts remain source of truth. Synthetic catalogue rows (<code>emb:</code> / <code>mock:</code> / <code>custom:</code>) are <em>not</em> auto-marked LIVE by the local clock; publish provider-backed fixtures or arm a script for controlled live play. TheSportsDB free demo key supports event lookup; premium keys can also use V2 soccer livescores.
   </div>
 
   <h3>Match scripts</h3>

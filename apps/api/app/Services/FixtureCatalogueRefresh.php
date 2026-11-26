@@ -34,13 +34,15 @@ final class FixtureCatalogueRefresh
                 $sports = $this->settings->getGroup($tenant, 'sports_data')['payload'];
                 $autoPublish = (bool) ($sports['auto_publish'] ?? false);
 
-                // Customer refresh prioritises obscure catalogue reliability over live HTTP.
+                // Prefer real TheSportsDB ids when tenant obscure_live_sync is on;
+                // EmbeddedWorldLeaguesProvider still falls back to emb: catalogue on empty/429.
                 // Respect tenant auto_publish — never force-publish drafts in the background.
+                $obscureLive = (bool) ($sports['obscure_live_sync'] ?? false);
                 $this->ingestion->sync($tenant, [
                     'sync_top_leagues' => false,
                     'sync_other_leagues' => false,
                     'sync_obscure_leagues' => true,
-                    'obscure_live_sync' => false,
+                    'obscure_live_sync' => $obscureLive,
                     'auto_publish' => $autoPublish,
                     'provider' => 'embedded_world',
                 ]);

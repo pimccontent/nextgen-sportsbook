@@ -101,6 +101,23 @@ final class SportsIngestionService
         ];
     }
 
+    /**
+     * Apply a provider DTO to an unlocked fixture (catalogue or live adapter).
+     * Locked rows are skipped — admin/script remains source of truth.
+     *
+     * @param  array<string, mixed>  $cfg
+     * @return array{created: bool, skipped?: bool}
+     */
+    public function applyUnlockedDto(SportsFixtureDto $dto, string $providerName, array $cfg = []): array
+    {
+        $football = Sport::query()->firstOrCreate(
+            ['slug' => 'football'],
+            ['name' => 'Football', 'status' => 'active']
+        );
+
+        return $this->upsertFixture($football, $dto, $cfg, $providerName);
+    }
+
     private function upsertFixture(Sport $football, SportsFixtureDto $dto, array $cfg, string $providerName): array
     {
         return DB::transaction(function () use ($football, $dto, $cfg, $providerName) {
@@ -141,24 +158,43 @@ final class SportsIngestionService
                 $publishedAt = $existing?->published_at;
             }
 
+            $status = EventStatus::from($dto->status);
+            $attrs = [
+                'public_id' => $existing?->public_id ?? $publicId,
+                'competition_id' => $competition->id,
+                'home_team_id' => $home->id,
+                'away_team_id' => $away->id,
+                'kickoff_at' => $dto->kickoffIso,
+                'timezone' => 'UTC',
+                'status' => $status,
+                // Unlocked fixtures accept provider score/status updates when provided.
+                'score_home' => $dto->scoreHome !== null ? $dto->scoreHome : $existing?->score_home,
+                'score_away' => $dto->scoreAway !== null ? $dto->scoreAway : $existing?->score_away,
+                'provider_source' => $providerName,
+                'provider_ingested_at' => now(),
+                'publication_state' => $publication,
+                'published_at' => $publishedAt,
+            ];
+
+            if ($dto->minute !== null) {
+                $attrs['minute'] = $dto->minute;
+            }
+            if ($dto->period !== null) {
+                $attrs['period'] = $dto->period;
+            } elseif ($status === EventStatus::Finished) {
+                $attrs['period'] = $existing?->period ?: 'FT';
+            }
+
+            if ($status === EventStatus::Live) {
+                $attrs['clock_started_at'] = $existing?->clock_started_at
+                    ?? ($existing?->kickoff_at ?? $dto->kickoffIso);
+            } elseif ($status === EventStatus::Finished) {
+                $attrs['clock_started_at'] = null;
+            }
+
             $event = SportEvent::query()->updateOrCreate(
                 ['provider_event_id' => $dto->providerEventId],
-                [
-                    'public_id' => $existing?->public_id ?? $publicId,
-                    'competition_id' => $competition->id,
-                    'home_team_id' => $home->id,
-                    'away_team_id' => $away->id,
-                    'kickoff_at' => $dto->kickoffIso,
-                    'timezone' => 'UTC',
-                    'status' => EventStatus::from($dto->status),
-                    // Unlocked fixtures accept provider score/status updates when provided.
-                    'score_home' => $dto->scoreHome !== null ? $dto->scoreHome : $existing?->score_home,
-                    'score_away' => $dto->scoreAway !== null ? $dto->scoreAway : $existing?->score_away,
-                    'provider_source' => $providerName,
-                    'provider_ingested_at' => now(),
-                    'publication_state' => $publication,
-                    'published_at' => $publishedAt,
-                ]
+                $attrs
             );
 
             $created = $event->wasRecentlyCreated;
@@ -173,9 +209,9 @@ final class SportsIngestionService
                 ]
             );
 
-            $this->ensureSelection($main, $event->public_id.'-1', '1', 'home', (float) $cfg['default_home_odds']);
-            $this->ensureSelection($main, $event->public_id.'-x', 'X', 'draw', (float) $cfg['default_draw_odds']);
-            $this->ensureSelection($main, $event->public_id.'-2', '2', 'away', (float) $cfg['default_away_odds']);
+            $this->ensureSelection($main, $event->public_id.'-1', '1', 'home', (float) ($cfg['default_home_odds'] ?? 2.1));
+            $this->ensureSelection($main, $event->public_id.'-x', 'X', 'draw', (float) ($cfg['default_draw_odds'] ?? 3.2));
+            $this->ensureSelection($main, $event->public_id.'-2', '2', 'away', (float) ($cfg['default_away_odds'] ?? 3.4));
 
             return ['created' => $created];
         });
