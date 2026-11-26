@@ -38,7 +38,9 @@ final class HealthController
             'service' => 'nextgen-api',
             'status' => $healthy ? 'healthy' : 'degraded',
             'checks' => $checks,
-            'note' => 'Foundation stub — betting/finance domains not enabled',
+            'note' => $healthy
+                ? 'API process up'
+                : 'API up but database/redis checks failed',
         ], 'Health check');
     }
 }
